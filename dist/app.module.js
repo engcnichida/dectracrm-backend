@@ -19,7 +19,7 @@ const backup_module_1 = require("./application/backup/backup.module");
 const receipt_entity_1 = require("./domain/receipt.entity");
 const receipts_module_1 = require("./application/receipts/receipts.module");
 const cash_flow_module_1 = require("./application/financial/cash-flow.module");
-const suppliers_module_1 = require("./application/suppliers/suppliers.module");
+const suppliers_module_1 = require("./application/Suppliers/suppliers.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;

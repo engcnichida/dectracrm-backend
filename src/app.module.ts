@@ -30,7 +30,7 @@ import { suppliersModule } from './application/suppliers/suppliers.module';
       ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
       
       autoLoadEntities: true,
-      synchronize: true, // ⚠️ NUNCA deixe true em produção para não apagar dados!
+      synchronize: process.env.NODE_ENV !== 'production',
 
       // Configurações de resiliência de conexão
       retryAttempts: 10,

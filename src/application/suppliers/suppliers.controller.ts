@@ -1,9 +1,9 @@
 import { Controller, Get, Post, Put, Delete, Body, Param } from '@nestjs/common';
-import { SuppliersService } from './suppliers.service';
+import { suppliersService } from './suppliers.service';
 
 @Controller('suppliers')
-export class SuppliersController {
-  constructor(private readonly suppliersService: SuppliersService) {}
+export class suppliersController {
+  constructor(private readonly suppliersService: suppliersService) {}
 
   @Get()
   findAll() {

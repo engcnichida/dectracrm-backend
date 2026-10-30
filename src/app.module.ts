@@ -10,7 +10,7 @@ import { BackupModule } from './application/backup/backup.module';
 import { Receipt } from './domain/receipt.entity';
 import { ReceiptsModule } from './application/receipts/receipts.module';
 import { CashFlowModule } from './application/financial/cash-flow.module';
-import { SuppliersModule } from './application/Suppliers/suppliers.module';
+import { suppliersModule } from './application/suppliers/suppliers.module';
 
 @Module({
   imports: [
@@ -55,7 +55,7 @@ import { SuppliersModule } from './application/Suppliers/suppliers.module';
     Receipt,
     ScheduleModule.forRoot(),
     CashFlowModule,
-    SuppliersModule,
+    suppliersModule,
   ],
 })
 export class AppModule {}

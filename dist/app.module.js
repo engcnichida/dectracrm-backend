@@ -39,7 +39,7 @@ exports.AppModule = AppModule = __decorate([
                 url: process.env.DATABASE_URL,
                 ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
                 autoLoadEntities: true,
-                synchronize: true,
+                synchronize: process.env.NODE_ENV !== 'production',
                 retryAttempts: 10,
                 retryDelay: 3000,
                 extra: {

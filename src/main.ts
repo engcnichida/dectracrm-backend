@@ -19,13 +19,18 @@ async function bootstrap() {
     transformOptions: { enableImplicitConversion: true },
   }));
 
-  // ✅ MUDANÇA AQUI: Porta padrão alterada de 3000 para 8000
+  // ⚠️ MUDANÇA CRÍTICA: Especificar '0.0.0.0' para o Render funcionar
   const port = process.env.PORT || 8000;
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
   
-  const authService = app.get(AuthService);
-  await authService.createInitialAdmin();
+  // ✅ Envolve em try-catch para não derrubar o app se falhar
+  try {
+    const authService = app.get(AuthService);
+    await authService.createInitialAdmin();
+  } catch (error) {
+    console.error('⚠️  Aviso: Erro ao criar admin inicial (pode ser ignorado se o usuário já existir):', error.message);
+  }
   
-  console.log(`🚀 Backend DectraCRM rodando em http://localhost:${port}`);
+  console.log(`🚀 Backend DectraCRM rodando em http://0.0.0.0:${port}`);
 }
 bootstrap();

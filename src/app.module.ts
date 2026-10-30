@@ -24,27 +24,21 @@ import { suppliersModule } from './application/suppliers/suppliers.module';
     }),    
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: process.env.DB_HOST || 'localhost',
-      port: parseInt(process.env.DB_PORT || '5432'),
-      username: process.env.DB_USERNAME || 'dectra',
-      password: process.env.DB_PASSWORD || 'dectra123',
-      database: process.env.DB_DATABASE || 'dectra_crm',
+      url: process.env.DATABASE_URL, // Usa a string de conexão completa do Neon (já inclui sslmode=require)
+      
+      // Força SSL em produção (Render), mas mantém falso localmente para não quebrar seu PC
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+      
       autoLoadEntities: true,
-      synchronize: true,
+      synchronize: process.env.NODE_ENV !== 'production', // ⚠️ NUNCA deixe true em produção para não apagar dados!
 
-      // ==========================================
-      // CONFIGURAÇÕES DE RESILIÊNCIA DE CONEXÃO
-      // ==========================================
-      
-      // 1. Tentativas de reconexão automática do TypeORM
-      retryAttempts: 10,       // Tenta reconectar 10 vezes se cair
-      retryDelay: 3000,        // Espera 3 segundos entre cada tentativa
-      
-      // 2. Configurações do Pool de Conexões (Driver pg)
+      // Configurações de resiliência de conexão
+      retryAttempts: 10,
+      retryDelay: 3000,
       extra: {
-        max: 20,               // Número máximo de conexões simultâneas no pool
-        idleTimeoutMillis: 30000, // Fecha conexões ociosas após 30s (evita que o servidor as mate inesperadamente)
-        connectionTimeoutMillis: 5000, // Tempo máximo para tentar estabelecer uma nova conexão (5s)
+        max: 20,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 5000,
       },
     }),
     

@@ -28,7 +28,7 @@ async function bootstrap() {
     const authService = app.get(AuthService);
     await authService.createInitialAdmin();
   } catch (error) {
-    console.error('⚠️  Aviso: Erro ao criar admin inicial (pode ser ignorado se o usuário já existir):', error.message);
+    console.error('⚠️  Aviso: Erro ao criar admin inicial (pode ser ignorado se o usuário já existir):', error);
   }
   
   console.log(`🚀 Backend DectraCRM rodando em http://0.0.0.0:${port}`);

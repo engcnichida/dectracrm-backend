@@ -15,7 +15,8 @@ import { UserPreset } from '../../domain/user-preset.entity';
 import { BadRequestException } from '@nestjs/common';
 import { ReceiptsService } from '../receipts/receipts.service'; 
 import { ReceiptType, ReceiptStatus } from '../../domain/receipt.entity';
-
+   import { Supplier } from '../../domain/supplier.entity'; 
+   import { Receipt } from '../../domain/receipt.entity';   
 @Injectable()
 export class CrmService {
   // 1. O Logger deve ficar FORA do constructor, como propriedade da classe
@@ -698,16 +699,6 @@ async getCustomerDetails(id: string) {
         active: true,
       });
       return this.supplierRepo.save(supplier);
-    }
-
-    async getLastReceiptBySupplier(supplierId: string) {
-      // Busca o último recibo deste prestador
-      // Ajuste 'this.receiptRepo' para o nome correto do seu repositório de recibos
-      // Se seus recibos estão em 'payables' ou outra tabela, ajuste conforme necessário
-      return this.receiptRepo.findOne({
-        where: { supplierId: supplierId },
-        order: { issueDate: 'DESC', createdAt: 'DESC' },
-      });
     }
 
     async createReceipt(data: any) {

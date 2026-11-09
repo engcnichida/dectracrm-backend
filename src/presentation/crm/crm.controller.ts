@@ -173,6 +173,11 @@ export class CrmController {
     return this.crmService.getFinancialDashboard(); 
   }
   
+  @Get('receipts/last/:supplierId')
+  getLastReceiptBySupplier(@Param('supplierId') supplierId: string) {
+    return this.crmService.getLastReceiptBySupplier(supplierId);
+  }
+
   @Get('financial/contracts-pending')
   getContractsPendingReceivables() {
     return this.crmService.getContractsPendingReceivables();
@@ -423,5 +428,25 @@ export class CrmController {
     if (!keywords) throw new (require('@nestjs/common').BadRequestException)('Palavras-chave sao obrigatorias');
     return this.crmService.searchLeadsOnline(keywords);
   }
- 
+  // ==================== PRESTADORES E RECIBOS ====================
+
+  @Get('suppliers')
+  findAllSuppliers() {
+    return this.crmService.findAllSuppliers();
+  }
+
+  @Post('suppliers')
+  createSupplier(@Body() data: any) {
+    return this.crmService.createSupplier(data);
+  }
+
+  @Get('receipts/last/:supplierId')
+  getLastReceiptBySupplier(@Param('supplierId') supplierId: string) {
+    return this.crmService.getLastReceiptBySupplier(supplierId);
+  }
+
+  @Post('receipts')
+  createReceipt(@Body() data: any) {
+    return this.crmService.createReceipt(data);
+  }
 }

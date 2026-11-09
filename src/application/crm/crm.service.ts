@@ -48,6 +48,9 @@ export class CrmService {
     @InjectRepository(ExpenseType) 
     private readonly expenseTypeRepo: Repository<ExpenseType>, 
     
+    @InjectRepository(Supplier) private supplierRepo: Repository<Supplier>,
+    @InjectRepository(Receipt) private receiptRepo: Repository<Receipt>,
+    
     @InjectRepository(UserPreset) 
     private readonly userPresetRepo: Repository<UserPreset>,
     
@@ -56,6 +59,7 @@ export class CrmService {
     
     // 2. Adicione o ReceiptsService aqui (com vírgula no item anterior)
     private readonly receiptsService: ReceiptsService,
+
   ) {}
 
   // ==========================================
@@ -674,7 +678,61 @@ async getCustomerDetails(id: string) {
     if (result.affected === 0) throw new NotFoundException('Conta a pagar não encontrada');
     return { success: true };
   }
+  // ==================== PRESTADORES E RECIBOS ====================
 
+    async findAllSuppliers() {
+      // Usa o repositório de suppliers que já deve estar injetado
+      // Se não estiver, adicione no constructor: @InjectRepository(Supplier) private supplierRepo: Repository<Supplier>
+      return this.supplierRepo.find({ 
+        where: { active: true }, // ou onde: { active: true } se tiver campo active
+        order: { name: 'ASC' } 
+      });
+    }
+
+    async createSupplier(data: any) {
+      const supplier = this.supplierRepo.create({
+        name: data.name,
+        cnpj: data.document || data.cnpj,
+        email: data.email,
+        phone: data.phone,
+        active: true,
+      });
+      return this.supplierRepo.save(supplier);
+    }
+
+    async getLastReceiptBySupplier(supplierId: string) {
+      // Busca o último recibo deste prestador
+      // Ajuste 'this.receiptRepo' para o nome correto do seu repositório de recibos
+      // Se seus recibos estão em 'payables' ou outra tabela, ajuste conforme necessário
+      return this.receiptRepo.findOne({
+        where: { supplierId: supplierId },
+        order: { issueDate: 'DESC', createdAt: 'DESC' },
+      });
+    }
+
+    async createReceipt(data: any) {
+      const receipt = this.receiptRepo.create({
+        supplierId: data.supplierId,
+        description: data.description,
+        amount: data.amount,
+        issueDate: new Date(data.issueDate),
+        dueDate: new Date(data.dueDate),
+        status: data.status || 'PENDENTE',
+        paidAt: data.status === 'PAGO' ? new Date() : null,
+      });
+      return this.receiptRepo.save(receipt);
+    }
+ // ==================== RECIBOS DE PRESTADORES ====================
+
+  async getLastReceiptBySupplier(supplierId: string) {
+    // Busca o último recibo deste prestador, ordenado pela data de emissão (mais recente primeiro)
+    // ⚠️ IMPORTANTE: Se no seu sistema o recibo é salvo na tabela de 'payables' (contas pagas), 
+    // troque 'this.receiptRepo' por 'this.payableRepo' e 'issueDate' por 'paidAt' ou 'createdAt'.
+    return this.receiptRepo.findOne({
+      where: { supplierId: supplierId }, // ou providerId, dependendo do nome da sua coluna
+      order: { issueDate: 'DESC' }, 
+    });
+  }
   // ==================== EXPENSES (DESPESAS) ====================
 
 async findAllExpenses() {

@@ -49,8 +49,11 @@ export class CrmService {
     @InjectRepository(ExpenseType) 
     private readonly expenseTypeRepo: Repository<ExpenseType>, 
     
-    @InjectRepository(Supplier) private supplierRepo: Repository<Supplier>,
-    @InjectRepository(Receipt) private receiptRepo: Repository<Receipt>,
+    @InjectRepository(Supplier) 
+    private supplierRepo: Repository<Supplier>,
+
+    @InjectRepository(Receipt) 
+    private receiptRepo: Repository<Receipt>,
     
     @InjectRepository(UserPreset) 
     private readonly userPresetRepo: Repository<UserPreset>,
@@ -702,28 +705,44 @@ async getCustomerDetails(id: string) {
     }
 
     async createReceipt(data: any) {
+      // 1. Busca o nome do fornecedor para usar como issuerName (já que a entity Receipt não tem supplierId)
+      let issuerName = 'Prestador';
+      if (data.supplierId) {
+        const supplier = await this.supplierRepo.findOne({ where: { id: data.supplierId } });
+        if (supplier) {
+          issuerName = supplier.name;
+        }
+      }
+
+      // 2. Cria o recibo usando os campos REAIS da sua entity Receipt
       const receipt = this.receiptRepo.create({
-        supplierId: data.supplierId,
+        type: ReceiptType.PJ, // Ajuste para ReceiptType.SERVICO ou outro se preferir
         description: data.description,
         amount: data.amount,
-        issueDate: new Date(data.issueDate),
-        dueDate: new Date(data.dueDate),
-        status: data.status || 'PENDENTE',
-        paidAt: data.status === 'PAGO' ? new Date() : null,
+        receiptDate: new Date(data.issueDate), // Mapeia o issueDate do frontend para receiptDate
+        issuerName: issuerName, 
+        status: data.status === 'PAGO' ? ReceiptStatus.PAGO : ReceiptStatus.PENDENTE,
+        notes: 'Recibo criado manualmente via Dashboard',
       });
+      
       return this.receiptRepo.save(receipt);
     }
- // ==================== RECIBOS DE PRESTADORES ====================
 
-  async getLastReceiptBySupplier(supplierId: string) {
-    // Busca o último recibo deste prestador, ordenado pela data de emissão (mais recente primeiro)
-    // ⚠️ IMPORTANTE: Se no seu sistema o recibo é salvo na tabela de 'payables' (contas pagas), 
-    // troque 'this.receiptRepo' por 'this.payableRepo' e 'issueDate' por 'paidAt' ou 'createdAt'.
-    return this.receiptRepo.findOne({
-      where: { supplierId: supplierId }, // ou providerId, dependendo do nome da sua coluna
-      order: { issueDate: 'DESC' }, 
-    });
-  }
+    async getLastReceiptBySupplier(supplierId: string) {
+      // 1. Busca o nome do fornecedor para usar na busca
+      let issuerName = supplierId;
+      const supplier = await this.supplierRepo.findOne({ where: { id: supplierId } });
+      if (supplier) {
+        issuerName = supplier.name;
+      }
+
+      // 2. Busca o último recibo usando os campos REAIS da entity (issuerName e receiptDate)
+      return this.receiptRepo.findOne({
+        where: { issuerName: issuerName }, 
+        order: { receiptDate: 'DESC', createdAt: 'DESC' },
+      });
+    }
+
   // ==================== EXPENSES (DESPESAS) ====================
 
 async findAllExpenses() {

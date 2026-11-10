@@ -24,6 +24,7 @@ import { Expense } from '../../domain/expense.entity';
 import { ExpenseType } from '../../domain/expense-type.entity';
 import { RecurringExpense } from '../../domain/recurring-expense.entity';
 import { CashFlowForecast } from '../../domain/cash-flow-forecast.entity';
+import { Receipt } from '../../domain/receipt.entity';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { CashFlowForecast } from '../../domain/cash-flow-forecast.entity';
       RecurringExpense,
       CashFlowForecast,
       UserPreset,
+      Receipt,
     ]),
     ReceiptsModule,
     JwtModule.register({

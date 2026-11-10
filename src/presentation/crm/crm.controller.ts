@@ -172,11 +172,6 @@ export class CrmController {
   getFinancialDashboard() { 
     return this.crmService.getFinancialDashboard(); 
   }
-  
-  @Get('receipts/last/:supplierId')
-  getLastReceiptBySupplier(@Param('supplierId') supplierId: string) {
-    return this.crmService.getLastReceiptBySupplier(supplierId);
-  }
 
   @Get('financial/contracts-pending')
   getContractsPendingReceivables() {

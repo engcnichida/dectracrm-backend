@@ -16,6 +16,10 @@ exports.ReceiptsController = void 0;
 const common_1 = require("@nestjs/common");
 const platform_express_1 = require("@nestjs/platform-express");
 const receipts_service_1 = require("../../application/receipts/receipts.service");
+const jwt_auth_guard_1 = require("../../application/auth/jwt-auth.guard");
+const roles_guard_1 = require("../../common/guards/roles.guard");
+const roles_decorator_1 = require("../../common/decorators/roles.decorator");
+const user_entity_1 = require("../../domain/user.entity");
 let ReceiptsController = class ReceiptsController {
     constructor(receiptsService) {
         this.receiptsService = receiptsService;
@@ -146,6 +150,8 @@ __decorate([
 ], ReceiptsController.prototype, "previewPdf", null);
 exports.ReceiptsController = ReceiptsController = __decorate([
     (0, common_1.Controller)('receipts'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)(user_entity_1.UserRole.FINANCEIRO, user_entity_1.UserRole.GERENTE, user_entity_1.UserRole.ADMIN),
     __metadata("design:paramtypes", [receipts_service_1.ReceiptsService])
 ], ReceiptsController);
 //# sourceMappingURL=receipts.controller.js.map

@@ -16,7 +16,6 @@ const path_1 = require("path");
 const auth_module_1 = require("./application/auth/auth.module");
 const crm_module_1 = require("./application/crm/crm.module");
 const backup_module_1 = require("./application/backup/backup.module");
-const receipt_entity_1 = require("./domain/receipt.entity");
 const receipts_module_1 = require("./application/receipts/receipts.module");
 const cash_flow_module_1 = require("./application/financial/cash-flow.module");
 const suppliers_module_1 = require("./application/suppliers/suppliers.module");
@@ -52,8 +51,6 @@ exports.AppModule = AppModule = __decorate([
             crm_module_1.CrmModule,
             backup_module_1.BackupModule,
             receipts_module_1.ReceiptsModule,
-            receipt_entity_1.Receipt,
-            schedule_1.ScheduleModule.forRoot(),
             cash_flow_module_1.CashFlowModule,
             suppliers_module_1.suppliersModule,
         ],

@@ -10,6 +10,8 @@ import { CashFlowForecast } from '../../domain/cash-flow-forecast.entity';
 import { ExpenseType } from '../../domain/expense-type.entity';
 import { UserPreset } from '../../domain/user-preset.entity';
 import { ReceiptsService } from '../receipts/receipts.service';
+import { Supplier } from '../../domain/supplier.entity';
+import { Receipt } from '../../domain/receipt.entity';
 export declare class CrmService {
     private readonly opportunityRepo;
     private readonly customerRepo;
@@ -20,11 +22,13 @@ export declare class CrmService {
     private readonly dataSource;
     private readonly expenseRepo;
     private readonly expenseTypeRepo;
+    private supplierRepo;
+    private receiptRepo;
     private readonly userPresetRepo;
     private readonly cashFlowForecastRepo;
     private readonly receiptsService;
     private readonly logger;
-    constructor(opportunityRepo: Repository<Opportunity>, customerRepo: Repository<Customer>, contractRepo: Repository<Contract>, receivableRepo: Repository<Receivable>, recurringExpenseRepo: Repository<RecurringExpense>, payableRepo: Repository<Payable>, dataSource: DataSource, expenseRepo: Repository<Expense>, expenseTypeRepo: Repository<ExpenseType>, userPresetRepo: Repository<UserPreset>, cashFlowForecastRepo: Repository<CashFlowForecast>, receiptsService: ReceiptsService);
+    constructor(opportunityRepo: Repository<Opportunity>, customerRepo: Repository<Customer>, contractRepo: Repository<Contract>, receivableRepo: Repository<Receivable>, recurringExpenseRepo: Repository<RecurringExpense>, payableRepo: Repository<Payable>, dataSource: DataSource, expenseRepo: Repository<Expense>, expenseTypeRepo: Repository<ExpenseType>, supplierRepo: Repository<Supplier>, receiptRepo: Repository<Receipt>, userPresetRepo: Repository<UserPreset>, cashFlowForecastRepo: Repository<CashFlowForecast>, receiptsService: ReceiptsService);
     getOpportunitiesBoard(): Promise<Record<string, any[]>>;
     createOpportunity(data: any): Promise<any>;
     updateOpportunity(id: string, data: any): Promise<Opportunity>;
@@ -92,6 +96,10 @@ export declare class CrmService {
     deletePayable(id: string): Promise<{
         success: boolean;
     }>;
+    findAllSuppliers(): Promise<Supplier[]>;
+    createSupplier(data: any): Promise<Supplier>;
+    createReceipt(data: any): Promise<Receipt>;
+    getLastReceiptBySupplier(supplierId: string): Promise<Receipt>;
     findAllExpenses(): Promise<Expense[]>;
     createExpense(data: any): Promise<any>;
     private createPayableFromExpense;

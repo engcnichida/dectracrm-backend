@@ -32,6 +32,10 @@ export class Receipt {
 
   @Column({ type: 'date' })
   receiptDate: Date;
+
+  @Column({ type: 'date', nullable: true })
+  dueDate?: Date;
+
   @ManyToOne(() => Supplier, (supplier) => supplier.receipts, { nullable: true })
   supplier?: Supplier;
 

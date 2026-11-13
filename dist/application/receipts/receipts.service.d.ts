@@ -12,6 +12,7 @@ export declare class ReceiptsService {
         description: string;
         amount: number;
         receiptDate: Date;
+        dueDate?: Date;
         supplier?: import("../../domain/supplier.entity").Supplier;
         supplierId?: string;
         issuerName: string;
@@ -42,6 +43,7 @@ export declare class ReceiptsService {
         description: string;
         amount: number;
         receiptDate: Date;
+        dueDate?: Date;
         supplier?: import("../../domain/supplier.entity").Supplier;
         supplierId?: string;
         issuerName: string;
@@ -66,6 +68,7 @@ export declare class ReceiptsService {
         description: string;
         amount: number;
         receiptDate: Date;
+        dueDate?: Date;
         supplier?: import("../../domain/supplier.entity").Supplier;
         supplierId?: string;
         issuerName: string;

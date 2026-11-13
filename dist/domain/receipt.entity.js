@@ -52,6 +52,10 @@ __decorate([
     __metadata("design:type", Date)
 ], Receipt.prototype, "receiptDate", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'date', nullable: true }),
+    __metadata("design:type", Date)
+], Receipt.prototype, "dueDate", void 0);
+__decorate([
     (0, typeorm_1.ManyToOne)(() => supplier_entity_1.Supplier, (supplier) => supplier.receipts, { nullable: true }),
     __metadata("design:type", supplier_entity_1.Supplier)
 ], Receipt.prototype, "supplier", void 0);

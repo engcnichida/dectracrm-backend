@@ -1,10 +1,8 @@
-import { FinancialAutomationService } from '../../application/financial/financial-automation.service';
 import { JwtService } from '@nestjs/jwt';
+import { Response } from 'express';
 import { CrmService } from '../../application/crm/crm.service';
 import { AlertSubscriberService } from '../../application/auth/alert-subscriber.service';
-import { ExpenseType } from '../../domain/expense-type.entity';
-import { CashFlowForecast } from '../../domain/cash-flow-forecast.entity';
-import { Response } from 'express';
+import { FinancialAutomationService } from '../../application/financial/financial-automation.service';
 export declare class CrmController {
     private readonly crmService;
     private readonly jwtService;
@@ -22,6 +20,10 @@ export declare class CrmController {
     deleteOpportunity(id: string): Promise<{
         success: boolean;
     }>;
+    archiveOpportunity(id: string, body: {
+        reason?: string;
+    }): Promise<import("../../domain/opportunity.entity").Opportunity>;
+    getArchivedOpportunities(customerId?: string): Promise<import("../../domain/opportunity.entity").Opportunity[]>;
     findAllCustomers(): Promise<import("../../domain/customer.entity").Customer[]>;
     getCustomerMetrics(): Promise<{
         totalCustomers: number;
@@ -61,10 +63,6 @@ export declare class CrmController {
     deleteContract(id: string): Promise<{
         message: string;
     }>;
-    archiveOpportunity(id: string, body: {
-        reason?: string;
-    }): Promise<import("../../domain/opportunity.entity").Opportunity>;
-    getArchivedOpportunities(customerId?: string): Promise<import("../../domain/opportunity.entity").Opportunity[]>;
     findAllReceivables(): Promise<import("../../domain/receivable.entity").Receivable[]>;
     markReceivableAsPaid(id: string, paidAt?: string): Promise<import("../../domain/receivable.entity").Receivable>;
     markReceivableAsOpen(id: string): Promise<import("../../domain/receivable.entity").Receivable>;
@@ -113,21 +111,6 @@ export declare class CrmController {
         costs: number;
         expenses: number;
     }[]>;
-    exportOpportunitiesCsv(res: Response): Promise<Response<any, Record<string, any>>>;
-    markAsPaid(type: 'receivable' | 'payable', id: string): Promise<any>;
-    getAlertSubscribers(req: any): Promise<import("../../domain/alert-subscriber.entity").AlertSubscriber[]>;
-    addAlertSubscriber(req: any, data: {
-        userId: string;
-        receivePaymentConfirmations: boolean;
-        receiveDueDateReminders: boolean;
-    }): Promise<import("../../domain/alert-subscriber.entity").AlertSubscriber>;
-    removeAlertSubscriber(req: any, id: string): Promise<{
-        message: string;
-    }>;
-    testEmailAutomation(): Promise<{
-        message: string;
-        timestamp: string;
-    }>;
     findAllExpenses(): Promise<import("../../domain/expense.entity").Expense[]>;
     createExpense(data: any): Promise<any>;
     updateExpense(id: string, data: any): Promise<import("../../domain/expense.entity").Expense>;
@@ -145,9 +128,9 @@ export declare class CrmController {
     generateRecurringPayables(): Promise<{
         generated: number;
     }>;
-    findAllExpenseTypes(): Promise<ExpenseType[]>;
+    findAllExpenseTypes(): Promise<import("../../domain/expense-type.entity").ExpenseType[]>;
     createExpenseType(data: any): Promise<any>;
-    updateExpenseType(id: string, data: any): Promise<ExpenseType>;
+    updateExpenseType(id: string, data: any): Promise<import("../../domain/expense-type.entity").ExpenseType>;
     deleteExpenseType(id: string): Promise<{
         success: boolean;
     }>;
@@ -190,7 +173,7 @@ export declare class CrmController {
         year: number;
         receivables: import("../../domain/receivable.entity").Receivable[];
         expenses: import("../../domain/expense.entity").Expense[];
-        forecasts: CashFlowForecast[];
+        forecasts: import("../../domain/cash-flow-forecast.entity").CashFlowForecast[];
         summary: {
             totalReceivables: number;
             totalReceived: number;
@@ -237,4 +220,22 @@ export declare class CrmController {
         estimatedValue: number;
         source: string;
     }[]>;
+    findAllSuppliers(): Promise<import("../../domain/supplier.entity").Supplier[]>;
+    createSupplier(data: any): Promise<import("../../domain/supplier.entity").Supplier>;
+    getLastReceiptBySupplier(supplierId: string): Promise<import("../../domain/receipt.entity").Receipt>;
+    createReceipt(data: any): Promise<import("../../domain/receipt.entity").Receipt>;
+    getAlertSubscribers(req: any): Promise<import("../../domain/alert-subscriber.entity").AlertSubscriber[]>;
+    addAlertSubscriber(req: any, data: {
+        userId: string;
+        receivePaymentConfirmations: boolean;
+        receiveDueDateReminders: boolean;
+    }): Promise<import("../../domain/alert-subscriber.entity").AlertSubscriber>;
+    removeAlertSubscriber(req: any, id: string): Promise<{
+        message: string;
+    }>;
+    testEmailAutomation(): Promise<{
+        message: string;
+        timestamp: string;
+    }>;
+    exportOpportunitiesCsv(res: Response): Promise<Response<any, Record<string, any>>>;
 }

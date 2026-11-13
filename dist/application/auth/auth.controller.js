@@ -14,61 +14,58 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthController = void 0;
 const common_1 = require("@nestjs/common");
-const jwt_1 = require("@nestjs/jwt");
-const auth_service_1 = require("./auth.service");
 const jwt_auth_guard_1 = require("./jwt-auth.guard");
+const roles_guard_1 = require("../../common/guards/roles.guard");
+const roles_decorator_1 = require("../../common/decorators/roles.decorator");
+const user_entity_1 = require("../../domain/user.entity");
+const auth_service_1 = require("./auth.service");
 let AuthController = class AuthController {
-    constructor(authService, jwtService) {
+    constructor(authService) {
         this.authService = authService;
-        this.jwtService = jwtService;
     }
-    login(data) {
-        return this.authService.login(data);
-    }
-    requestSignup(data) {
-        return this.authService.requestSignup(data);
-    }
-    validateApprovalCode(data) {
-        return this.authService.validateApprovalCode(data);
+    async login(loginDto) {
+        return this.authService.login(loginDto);
     }
     async getProfile(req) {
         const userId = req.user?.id || req.user?.sub;
-        if (!userId) {
+        if (!userId)
             throw new common_1.UnauthorizedException('Token inválido');
-        }
         const user = await this.authService.findUserById(userId);
-        if (!user) {
+        if (!user)
             throw new common_1.NotFoundException('Usuário não encontrado');
-        }
         const { password, ...userWithoutPassword } = user;
         return userWithoutPassword;
     }
-    changeOwnPassword(req, data) {
+    async changeOwnPassword(req, data) {
         const userId = req.user?.id || req.user?.sub;
         return this.authService.changeOwnPassword(userId, data.currentPassword, data.newPassword);
     }
-    getAllUsers(req) {
+    async getAllUsers(req) {
         const adminId = req.user?.id || req.user?.sub;
         return this.authService.getAllUsers(adminId);
     }
-    updatePermissions(req, userId, permissions) {
+    async updatePermissions(req, userId, permissions) {
         const adminId = req.user?.id || req.user?.sub;
         return this.authService.updateUserPermissions(adminId, userId, permissions);
     }
-    resetPassword(req, userId, data) {
+    async resetPassword(req, userId, data) {
         const adminId = req.user?.id || req.user?.sub;
         return this.authService.resetUserPassword(adminId, userId, data.newPassword);
     }
-    updateUserRole(req, userId, data) {
+    async updateUserRole(req, userId, data) {
         const adminId = req.user?.id || req.user?.sub;
         return this.authService.updateUserRole(adminId, userId, data.role);
     }
-    updateUserStatus(req, userId, data) {
+    async updateUserStatus(req, userId, data) {
         const adminId = req.user?.id || req.user?.sub;
         return this.authService.updateUserStatus(adminId, userId, data.status);
     }
-    async changeAdminEmail(body) {
+    async changeAdminEmail(req, body) {
         return this.authService.changeAdminEmail(body.email);
+    }
+    async createUser(req, data) {
+        const adminId = req.user?.id || req.user?.sub;
+        return this.authService.createUser(adminId, data);
     }
 };
 exports.AuthController = AuthController;
@@ -77,22 +74,8 @@ __decorate([
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:returntype", Promise)
 ], AuthController.prototype, "login", null);
-__decorate([
-    (0, common_1.Post)('signup'),
-    __param(0, (0, common_1.Body)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", void 0)
-], AuthController.prototype, "requestSignup", null);
-__decorate([
-    (0, common_1.Post)('activate'),
-    __param(0, (0, common_1.Body)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", void 0)
-], AuthController.prototype, "validateApprovalCode", null);
 __decorate([
     (0, common_1.Get)('me'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
@@ -108,67 +91,83 @@ __decorate([
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:returntype", Promise)
 ], AuthController.prototype, "changeOwnPassword", null);
 __decorate([
     (0, common_1.Get)('admin/users'),
-    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)(user_entity_1.UserRole.ADMIN),
     __param(0, (0, common_1.Req)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", void 0)
-], AuthController.prototype, "getAllUsers", null);
-__decorate([
-    (0, common_1.Patch)('admin/users/:userId/permissions'),
-    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
-    __param(0, (0, common_1.Req)()),
-    __param(1, (0, common_1.Param)('userId')),
-    __param(2, (0, common_1.Body)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, Object]),
-    __metadata("design:returntype", void 0)
-], AuthController.prototype, "updatePermissions", null);
-__decorate([
-    (0, common_1.Post)('admin/users/:userId/reset-password'),
-    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
-    __param(0, (0, common_1.Req)()),
-    __param(1, (0, common_1.Param)('userId')),
-    __param(2, (0, common_1.Body)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, Object]),
-    __metadata("design:returntype", void 0)
-], AuthController.prototype, "resetPassword", null);
-__decorate([
-    (0, common_1.Patch)('admin/users/:userId/role'),
-    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
-    __param(0, (0, common_1.Req)()),
-    __param(1, (0, common_1.Param)('userId')),
-    __param(2, (0, common_1.Body)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, Object]),
-    __metadata("design:returntype", void 0)
-], AuthController.prototype, "updateUserRole", null);
-__decorate([
-    (0, common_1.Patch)('admin/users/:userId/status'),
-    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
-    __param(0, (0, common_1.Req)()),
-    __param(1, (0, common_1.Param)('userId')),
-    __param(2, (0, common_1.Body)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, Object]),
-    __metadata("design:returntype", void 0)
-], AuthController.prototype, "updateUserStatus", null);
-__decorate([
-    (0, common_1.Patch)('admin/change-email'),
-    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
-    __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
+], AuthController.prototype, "getAllUsers", null);
+__decorate([
+    (0, common_1.Patch)('admin/users/:userId/permissions'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)(user_entity_1.UserRole.ADMIN),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('userId')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "updatePermissions", null);
+__decorate([
+    (0, common_1.Post)('admin/users/:userId/reset-password'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)(user_entity_1.UserRole.ADMIN),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('userId')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "resetPassword", null);
+__decorate([
+    (0, common_1.Patch)('admin/users/:userId/role'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)(user_entity_1.UserRole.ADMIN),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('userId')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "updateUserRole", null);
+__decorate([
+    (0, common_1.Patch)('admin/users/:userId/status'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)(user_entity_1.UserRole.ADMIN),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Param)('userId')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "updateUserStatus", null);
+__decorate([
+    (0, common_1.Patch)('admin/change-email'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)(user_entity_1.UserRole.ADMIN),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
 ], AuthController.prototype, "changeAdminEmail", null);
+__decorate([
+    (0, common_1.Post)('admin/users'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)(user_entity_1.UserRole.ADMIN),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "createUser", null);
 exports.AuthController = AuthController = __decorate([
     (0, common_1.Controller)('auth'),
-    __metadata("design:paramtypes", [auth_service_1.AuthService,
-        jwt_1.JwtService])
+    __metadata("design:paramtypes", [auth_service_1.AuthService])
 ], AuthController);
 //# sourceMappingURL=auth.controller.js.map

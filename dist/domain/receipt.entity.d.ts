@@ -16,6 +16,7 @@ export declare class Receipt {
     description: string;
     amount: number;
     receiptDate: Date;
+    dueDate?: Date;
     supplier?: Supplier;
     supplierId?: string;
     issuerName: string;

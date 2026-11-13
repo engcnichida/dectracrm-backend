@@ -221,6 +221,35 @@ export class AuthService {
       order: { createdAt: 'DESC' }
     });
   }
+  
+  // ✅ CRIAR NOVO USUÁRIO
+  async createUser(adminId: string, data: { name: string; email: string; password: string; role?: string }) {
+    // 1. Verificar se quem está criando é ADMIN
+    const admin = await this.userRepo.findOne({ where: { id: adminId } });
+    if (!admin || admin.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Apenas administradores podem criar usuários.');
+    }
+
+    // 2. Verificar se o e-mail já existe
+    const existing = await this.userRepo.findOne({ where: { email: data.email } });
+    if (existing) {
+      throw new ConflictException('Este e-mail já está cadastrado.');
+    }
+
+    // 3. Criar o usuário
+    const hashedPassword = await bcrypt.hash(data.password, 10);
+    const newUser = this.userRepo.create({
+      name: data.name,
+      email: data.email,
+      password: hashedPassword,
+      role: (data.role as UserRole) || UserRole.OPERACIONAL,
+      status: UserStatus.ATIVO,
+    });
+
+    const saved = await this.userRepo.save(newUser);
+    const { password, ...userWithoutPassword } = saved as any;
+    return userWithoutPassword;
+  }
 
   // 9. Obter perfil do usuário logado
   async getProfile(userId: string) {

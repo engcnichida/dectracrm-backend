@@ -31,6 +31,7 @@ const expense_entity_1 = require("../../domain/expense.entity");
 const expense_type_entity_1 = require("../../domain/expense-type.entity");
 const recurring_expense_entity_1 = require("../../domain/recurring-expense.entity");
 const cash_flow_forecast_entity_1 = require("../../domain/cash-flow-forecast.entity");
+const receipt_entity_1 = require("../../domain/receipt.entity");
 let CrmModule = class CrmModule {
 };
 exports.CrmModule = CrmModule;
@@ -52,6 +53,7 @@ exports.CrmModule = CrmModule = __decorate([
                 recurring_expense_entity_1.RecurringExpense,
                 cash_flow_forecast_entity_1.CashFlowForecast,
                 user_preset_entity_1.UserPreset,
+                receipt_entity_1.Receipt,
             ]),
             receipts_module_1.ReceiptsModule,
             jwt_1.JwtModule.register({

@@ -8,7 +8,8 @@ export declare enum UserRole {
     GERENTE = "GERENTE",
     VENDEDOR = "VENDEDOR",
     FINANCEIRO = "FINANCEIRO",
-    OPERACIONAL = "OPERACIONAL"
+    OPERACIONAL = "OPERACIONAL",
+    MARKETING = "MARKETING"
 }
 export declare class User {
     id: string;

@@ -10,12 +10,21 @@ import {
   Res,
   UseInterceptors,
   UploadedFiles,
+  UseGuards,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { ReceiptsService } from '../../application/receipts/receipts.service';
 import { Response } from 'express';
+   import { JwtAuthGuard } from '../../application/auth/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { UserRole } from '../../domain/user.entity';
 
 @Controller('receipts')
+@UseGuards(JwtAuthGuard, RolesGuard)
+// ✅ CORREÇÃO DE SEGURANÇA: Aplicado no nível da CLASSE. 
+// Agora TODOS os métodos abaixo exigem ser FINANCEIRO, GERENTE ou ADMIN.
+@Roles(UserRole.FINANCEIRO, UserRole.GERENTE, UserRole.ADMIN)
 export class ReceiptsController {
   constructor(private readonly receiptsService: ReceiptsService) {}
 
@@ -98,4 +107,5 @@ export class ReceiptsController {
       'Content-Disposition': `inline; filename="${receipt.receiptNumber}.pdf"`,
     });
     res.send(pdfBuffer);
-  }}
+  }
+}

@@ -12,6 +12,7 @@ export declare class ReceiptsController {
         description: string;
         amount: number;
         receiptDate: Date;
+        dueDate?: Date;
         supplier?: import("../../domain/supplier.entity").Supplier;
         supplierId?: string;
         issuerName: string;
@@ -39,6 +40,7 @@ export declare class ReceiptsController {
         description: string;
         amount: number;
         receiptDate: Date;
+        dueDate?: Date;
         supplier?: import("../../domain/supplier.entity").Supplier;
         supplierId?: string;
         issuerName: string;
@@ -63,6 +65,7 @@ export declare class ReceiptsController {
         description: string;
         amount: number;
         receiptDate: Date;
+        dueDate?: Date;
         supplier?: import("../../domain/supplier.entity").Supplier;
         supplierId?: string;
         issuerName: string;

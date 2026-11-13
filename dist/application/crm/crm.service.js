@@ -31,8 +31,10 @@ const user_preset_entity_1 = require("../../domain/user-preset.entity");
 const common_2 = require("@nestjs/common");
 const receipts_service_1 = require("../receipts/receipts.service");
 const receipt_entity_1 = require("../../domain/receipt.entity");
+const supplier_entity_1 = require("../../domain/supplier.entity");
+const receipt_entity_2 = require("../../domain/receipt.entity");
 let CrmService = CrmService_1 = class CrmService {
-    constructor(opportunityRepo, customerRepo, contractRepo, receivableRepo, recurringExpenseRepo, payableRepo, dataSource, expenseRepo, expenseTypeRepo, userPresetRepo, cashFlowForecastRepo, receiptsService) {
+    constructor(opportunityRepo, customerRepo, contractRepo, receivableRepo, recurringExpenseRepo, payableRepo, dataSource, expenseRepo, expenseTypeRepo, supplierRepo, receiptRepo, userPresetRepo, cashFlowForecastRepo, receiptsService) {
         this.opportunityRepo = opportunityRepo;
         this.customerRepo = customerRepo;
         this.contractRepo = contractRepo;
@@ -42,6 +44,8 @@ let CrmService = CrmService_1 = class CrmService {
         this.dataSource = dataSource;
         this.expenseRepo = expenseRepo;
         this.expenseTypeRepo = expenseTypeRepo;
+        this.supplierRepo = supplierRepo;
+        this.receiptRepo = receiptRepo;
         this.userPresetRepo = userPresetRepo;
         this.cashFlowForecastRepo = cashFlowForecastRepo;
         this.receiptsService = receiptsService;
@@ -510,6 +514,52 @@ let CrmService = CrmService_1 = class CrmService {
         if (result.affected === 0)
             throw new common_1.NotFoundException('Conta a pagar não encontrada');
         return { success: true };
+    }
+    async findAllSuppliers() {
+        return this.supplierRepo.find({
+            where: { active: true },
+            order: { name: 'ASC' }
+        });
+    }
+    async createSupplier(data) {
+        const supplier = this.supplierRepo.create({
+            name: data.name,
+            cnpj: data.document || data.cnpj,
+            email: data.email,
+            phone: data.phone,
+            active: true,
+        });
+        return this.supplierRepo.save(supplier);
+    }
+    async createReceipt(data) {
+        let issuerName = 'Prestador';
+        if (data.supplierId) {
+            const supplier = await this.supplierRepo.findOne({ where: { id: data.supplierId } });
+            if (supplier) {
+                issuerName = supplier.name;
+            }
+        }
+        const receipt = this.receiptRepo.create({
+            type: receipt_entity_1.ReceiptType.PJ,
+            description: data.description,
+            amount: data.amount,
+            receiptDate: new Date(data.issueDate),
+            issuerName: issuerName,
+            status: data.status === 'PAGO' ? receipt_entity_1.ReceiptStatus.PAGO : receipt_entity_1.ReceiptStatus.PENDENTE,
+            notes: 'Recibo criado manualmente via Dashboard',
+        });
+        return this.receiptRepo.save(receipt);
+    }
+    async getLastReceiptBySupplier(supplierId) {
+        let issuerName = supplierId;
+        const supplier = await this.supplierRepo.findOne({ where: { id: supplierId } });
+        if (supplier) {
+            issuerName = supplier.name;
+        }
+        return this.receiptRepo.findOne({
+            where: { issuerName: issuerName },
+            order: { receiptDate: 'DESC', createdAt: 'DESC' },
+        });
     }
     async findAllExpenses() {
         console.log('💸 [findAllExpenses] Buscando todas as despesas...');
@@ -1520,8 +1570,10 @@ exports.CrmService = CrmService = CrmService_1 = __decorate([
     __param(5, (0, typeorm_1.InjectRepository)(payable_entity_1.Payable)),
     __param(7, (0, typeorm_1.InjectRepository)(expense_entity_1.Expense)),
     __param(8, (0, typeorm_1.InjectRepository)(expense_type_entity_1.ExpenseType)),
-    __param(9, (0, typeorm_1.InjectRepository)(user_preset_entity_1.UserPreset)),
-    __param(10, (0, typeorm_1.InjectRepository)(cash_flow_forecast_entity_1.CashFlowForecast)),
+    __param(9, (0, typeorm_1.InjectRepository)(supplier_entity_1.Supplier)),
+    __param(10, (0, typeorm_1.InjectRepository)(receipt_entity_2.Receipt)),
+    __param(11, (0, typeorm_1.InjectRepository)(user_preset_entity_1.UserPreset)),
+    __param(12, (0, typeorm_1.InjectRepository)(cash_flow_forecast_entity_1.CashFlowForecast)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
@@ -1529,6 +1581,8 @@ exports.CrmService = CrmService = CrmService_1 = __decorate([
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.DataSource,
+        typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,

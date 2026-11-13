@@ -12,6 +12,7 @@ export enum UserRole {
   VENDEDOR = 'VENDEDOR',
   FINANCEIRO = 'FINANCEIRO',
   OPERACIONAL = 'OPERACIONAL',
+  MARKETING = 'MARKETING',
 }
 
 @Entity('users')

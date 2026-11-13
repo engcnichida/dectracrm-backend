@@ -119,63 +119,47 @@ export class ReceiptsService {
   }
 
   async updateReceipt(id: string, data: any, files?: any[]) {
-    this.logger.log('🔄 [updateReceipt] Atualizando recibo...');
+    this.logger.log(`🔄 [updateReceipt] Atualizando recibo ${id}...`);
     
     const receipt = await this.receiptRepo.findOne({ where: { id } });
     if (!receipt) throw new NotFoundException('Recibo não encontrado');
     
-    // Processar upload de arquivos (se houver)
+    // 1. Processar upload de arquivos (se houver)
     if (files && files.length > 0) {
       const uploadDir = path.join(process.cwd(), 'uploads', 'receipts');
-      if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
-      }
+      if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
       
       const attachments = receipt.attachments || [];
       for (const file of files) {
-        const fileName = `${receipt.receiptNumber}-${Date.now()}-${file.originalname}`;
-        const filePath = path.join(uploadDir, fileName);
-        fs.writeFileSync(filePath, file.buffer);
+        const fileName = `${receipt.receiptNumber || 'REC'}-${Date.now()}-${file.originalname}`;
+        fs.writeFileSync(path.join(uploadDir, fileName), file.buffer);
         attachments.push(`/uploads/receipts/${fileName}`);
       }
       data.attachments = attachments;
     }
 
-    // ✅ CORREÇÃO CRÍTICA: Converter strings vazias em NULL para campos UUID e opcionais
-    // O FormData envia TUDO como string. Se o campo estiver vazio, vira "". O Postgres rejeita "" em UUID.
-    const cleanData: any = {};
+    // 2. ✅ CORREÇÃO INFALÍVEL: Usar .update() direto no repositório
+    const updatePayload: any = {};
+    if (data.description !== undefined) updatePayload.description = data.description;
+    if (data.amount !== undefined) updatePayload.amount = data.amount;
+    if (data.status !== undefined) updatePayload.status = data.status;
+    if (data.supplierId !== undefined) updatePayload.supplierId = data.supplierId;
+    if (data.city !== undefined) updatePayload.city = data.city;
+    if (data.attachments !== undefined) updatePayload.attachments = data.attachments;
     
-    cleanData.type = data.type;
-    cleanData.description = data.description;
-    cleanData.amount = parseFloat(data.amount) || 0;
-    cleanData.receiptDate = data.receiptDate;
-    cleanData.issuerName = data.issuerName;
-    cleanData.status = data.status;
-    cleanData.paymentMethod = data.paymentMethod;
-    cleanData.notes = data.notes === '' ? null : data.notes;
-    
-    // Campos que podem ser UUID ou opcionais: DEVEM ser null se forem string vazia
-    cleanData.issuerDocument = data.issuerDocument === '' ? null : data.issuerDocument;
-    cleanData.issuerAddress = data.issuerAddress === '' ? null : data.issuerAddress;
-    cleanData.linkedEntityType = data.linkedEntityType === '' ? null : data.linkedEntityType;
-    
-    // ⚠️ AQUI ESTÁ O CULPADO DO ERRO: linkedEntityId
-    cleanData.linkedEntityId = data.linkedEntityId === '' ? null : data.linkedEntityId;
-    
-    // Campo city
-    cleanData.city = data.city === '' ? null : this.cleanCity(data.city);
-
-    // Aplicar as alterações
-    Object.assign(receipt, cleanData);
-    
-    try {
-      const saved = await this.receiptRepo.save(receipt);
-      this.logger.log(`✅ [updateReceipt] Recibo ${receipt.receiptNumber} atualizado com sucesso!`);
-      return saved;
-    } catch (error: any) {
-      this.logger.error('❌ [updateReceipt] Erro ao atualizar recibo:', error.message);
-      throw error;
+    // Correção de fuso horário para as datas
+    if (data.issueDate !== undefined) {
+      updatePayload.receiptDate = new Date(data.issueDate + 'T12:00:00');
     }
+    if (data.dueDate !== undefined) {
+      updatePayload.dueDate = new Date(data.dueDate + 'T12:00:00');
+    }
+
+    // Executa a atualização no banco
+    await this.receiptRepo.update(id, updatePayload);
+    
+    this.logger.log(`✅ [updateReceipt] Recibo ${id} atualizado com sucesso!`);
+    return this.receiptRepo.findOne({ where: { id } });
   }
 
   async deleteReceipt(id: string) {
@@ -203,7 +187,10 @@ export class ReceiptsService {
   }
 
   async generatePdf(id: string): Promise<Buffer> {
-    const receipt = await this.findOne(id);
+      const receipt = await this.receiptRepo.findOne({ 
+        where: { id }, 
+        relations: ['supplier'] // ✅ Isso força o TypeORM a trazer os dados do prestador, incluindo o CNPJ
+      });
 
     return new Promise((resolve, reject) => {
       const doc = new PDFDocument({ size: 'A4', margin: 50 });
@@ -251,10 +238,17 @@ export class ReceiptsService {
 
       doc.fontSize(11).font('Helvetica-Bold').text('DADOS DO RECEBEDOR:');
       doc.moveDown(0.3);
-      doc.font('Helvetica').text(`Nome: ${receipt.issuerName}`);
-      if (receipt.issuerDocument) {
-        doc.text(`CPF/CNPJ: ${receipt.issuerDocument}`);
+
+      // ✅ CORREÇÃO 1: Prioriza o nome do prestador vinculado (que atualiza dinamicamente)
+      const nomeRecebedor = receipt.supplier?.name || receipt.issuerName || 'Não informado';
+      doc.font('Helvetica').text(`Nome: ${nomeRecebedor}`);
+      
+      // ✅ CORREÇÃO 2: Pega o CPF/CNPJ do prestador vinculado
+      const docIdentificacao = receipt.supplier?.cnpj || receipt.issuerDocument;
+      if (docIdentificacao) {
+        doc.text(`CPF/CNPJ: ${docIdentificacao}`);
       }
+      
       if (receipt.issuerAddress) {
         doc.text(`Endereço: ${receipt.issuerAddress}`);
       }
@@ -269,17 +263,27 @@ export class ReceiptsService {
       doc.font('Helvetica-Bold').text(`TIPO: ${typeLabel}`);
       doc.moveDown(1);
 
-      // ✅ CORREÇÃO: dateStr agora está definido aqui
-      const dateStr = new Date(receipt.receiptDate).toLocaleDateString('pt-BR');
+      // ✅ CORREÇÃO: Formata a data manualmente para EVITAR o bug de fuso horário (1 dia a menos)
+      let dateStr = '__/__/____';
+      if (receipt.receiptDate) {
+        // Converte para string ISO e pega apenas a parte da data (YYYY-MM-DD)
+        const dateObj = new Date(receipt.receiptDate);
+        const userTimezoneOffset = dateObj.getTimezoneOffset() * 60000;
+        const adjustedDate = new Date(dateObj.getTime() + userTimezoneOffset);
+        dateStr = adjustedDate.toLocaleDateString('pt-BR');
+      }
+
       const local = receipt.city || '________________________';
-      doc.font('Helvetica').text(`Local e Data: ${local}, ${dateStr}`, { align: 'right' });
+      doc.font('Helvetica').text(`${local}, ${dateStr}`, { align: 'right' });
       doc.moveDown(2);
 
       doc.moveTo(150, doc.y).lineTo(450, doc.y).stroke('#333');
       doc.moveDown(0.3);
-      doc.fontSize(10).text(receipt.issuerName, { align: 'center' });
-      if (receipt.issuerDocument) {
-        doc.text(receipt.issuerDocument, { align: 'center' });
+      
+      // Assinatura com o nome correto
+      doc.fontSize(10).text(nomeRecebedor, { align: 'center' });
+      if (docIdentificacao) {
+        doc.text(docIdentificacao, { align: 'center' });
       }
 
       doc.fontSize(8).font('Helvetica-Oblique').text(

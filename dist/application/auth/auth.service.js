@@ -214,6 +214,27 @@ let AuthService = class AuthService {
             order: { createdAt: 'DESC' }
         });
     }
+    async createUser(adminId, data) {
+        const admin = await this.userRepo.findOne({ where: { id: adminId } });
+        if (!admin || admin.role !== user_entity_1.UserRole.ADMIN) {
+            throw new common_1.ForbiddenException('Apenas administradores podem criar usuários.');
+        }
+        const existing = await this.userRepo.findOne({ where: { email: data.email } });
+        if (existing) {
+            throw new common_1.ConflictException('Este e-mail já está cadastrado.');
+        }
+        const hashedPassword = await bcrypt.hash(data.password, 10);
+        const newUser = this.userRepo.create({
+            name: data.name,
+            email: data.email,
+            password: hashedPassword,
+            role: data.role || user_entity_1.UserRole.OPERACIONAL,
+            status: user_entity_1.UserStatus.ATIVO,
+        });
+        const saved = await this.userRepo.save(newUser);
+        const { password, ...userWithoutPassword } = saved;
+        return userWithoutPassword;
+    }
     async getProfile(userId) {
         const user = await this.userRepo.findOne({
             where: { id: userId },

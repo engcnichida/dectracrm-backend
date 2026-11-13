@@ -1,37 +1,20 @@
-import { JwtService } from '@nestjs/jwt';
+import { UserRole } from '../../domain/user.entity';
 import { AuthService } from './auth.service';
 export declare class AuthController {
     private readonly authService;
-    private readonly jwtService;
-    constructor(authService: AuthService, jwtService: JwtService);
-    login(data: {
-        email: string;
-        password: string;
-    }): Promise<{
+    constructor(authService: AuthService);
+    login(loginDto: any): Promise<{
         access_token: string;
         user: {
             id: string;
             email: string;
             name: string;
-            role: import("../../domain/user.entity").UserRole;
+            role: UserRole;
             permissions: Record<string, {
                 view: boolean;
                 edit: boolean;
             }>;
         };
-    }>;
-    requestSignup(data: {
-        email: string;
-        password: string;
-        name: string;
-    }): Promise<{
-        message: string;
-    }>;
-    validateApprovalCode(data: {
-        email: string;
-        code: string;
-    }): Promise<{
-        message: string;
     }>;
     getProfile(req: any): Promise<any>;
     changeOwnPassword(req: any, data: {
@@ -62,10 +45,16 @@ export declare class AuthController {
         message: string;
         user: import("../../domain/user.entity").User;
     }>;
-    changeAdminEmail(body: {
+    changeAdminEmail(req: any, body: {
         email: string;
     }): Promise<{
         message: string;
         newEmail: string;
     }>;
+    createUser(req: any, data: {
+        name: string;
+        email: string;
+        password: string;
+        role?: string;
+    }): Promise<any>;
 }

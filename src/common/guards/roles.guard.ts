@@ -13,12 +13,15 @@ export class RolesGuard implements CanActivate {
     ]);
 
     if (!requiredRoles) {
-      return true; // Se não exigir role, libera
+      return true; 
     }
 
-    const { user } = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest();
+    const user = request.user;
     
-    // Verifica se o usuário tem uma das roles permitidas
+    // ✅ LOG DE DIAGNÓSTICO: Veja isso no terminal do Render/Local quando o erro 403 ocorrer
+    console.log('🔍 [RolesGuard] Verificando permissão. Required:', requiredRoles, '| User no token:', user);
+
     const hasRole = requiredRoles.some((role) => user?.role === role);
     
     if (!hasRole) {

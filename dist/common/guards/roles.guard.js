@@ -25,7 +25,9 @@ let RolesGuard = class RolesGuard {
         if (!requiredRoles) {
             return true;
         }
-        const { user } = context.switchToHttp().getRequest();
+        const request = context.switchToHttp().getRequest();
+        const user = request.user;
+        console.log('🔍 [RolesGuard] Verificando permissão. Required:', requiredRoles, '| User no token:', user);
         const hasRole = requiredRoles.some((role) => user?.role === role);
         if (!hasRole) {
             throw new common_1.ForbiddenException('Você não tem permissão para acessar este recurso.');

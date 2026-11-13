@@ -193,9 +193,11 @@ export class CrmController {
     return this.crmService.markContractReceivablesAsOverdue(id);
   }
 
-  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.FINANCEIRO)
+  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.FINANCEIRO, UserRole.MARKETING, UserRole.VENDEDOR)
   @Get('kpis/sales')
-  getSalesKPIs() { return this.crmService.getSalesKPIs(); }
+  getSalesKPIs() {
+    return this.crmService.getSalesKPIs();
+  }
   
   @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.FINANCEIRO)
   @Get('dashboard/monthly-financial')

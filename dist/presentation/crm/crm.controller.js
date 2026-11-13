@@ -86,7 +86,9 @@ let CrmController = class CrmController {
     markContractReceivablesAsOverdue(id) {
         return this.crmService.markContractReceivablesAsOverdue(id);
     }
-    getSalesKPIs() { return this.crmService.getSalesKPIs(); }
+    getSalesKPIs() {
+        return this.crmService.getSalesKPIs();
+    }
     getMonthlyFinancialData(months, startDate, endDate) {
         return this.crmService.getMonthlyFinancialData(months ? parseInt(months) : 6, startDate, endDate);
     }
@@ -422,7 +424,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], CrmController.prototype, "markContractReceivablesAsOverdue", null);
 __decorate([
-    (0, roles_decorator_1.Roles)(user_entity_1.UserRole.ADMIN, user_entity_1.UserRole.GERENTE, user_entity_1.UserRole.FINANCEIRO),
+    (0, roles_decorator_1.Roles)(user_entity_1.UserRole.ADMIN, user_entity_1.UserRole.GERENTE, user_entity_1.UserRole.FINANCEIRO, user_entity_1.UserRole.MARKETING, user_entity_1.UserRole.VENDEDOR),
     (0, common_1.Get)('kpis/sales'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),

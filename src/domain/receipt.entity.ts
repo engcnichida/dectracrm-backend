@@ -30,11 +30,11 @@ export class Receipt {
   @Column({ type: 'decimal', precision: 12, scale: 2 })
   amount: number;
 
-  @Column({ type: 'date' })
-  receiptDate: Date;
+  @Column({ name: 'duedate', type: 'timestamp', nullable: true })
+  dueDate: Date;
 
-  @Column({ type: 'date', nullable: true })
-  dueDate?: Date;
+  @Column({ name: 'receiptdate', type: 'timestamp', nullable: true })
+  receiptDate: Date;
 
   @ManyToOne(() => Supplier, (supplier) => supplier.receipts, { nullable: true })
   supplier?: Supplier;

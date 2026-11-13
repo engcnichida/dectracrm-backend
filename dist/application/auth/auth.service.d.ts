@@ -46,11 +46,13 @@ export declare class AuthService {
     }>;
     adminCreateUser(adminId: string, data: any): Promise<User[]>;
     getAllUsers(adminId: string): Promise<User[]>;
-    createUser(adminId: string, data: {
+    createUser(adminId: string | null, data: {
         name: string;
         email: string;
         password: string;
         role?: string;
+        status?: string;
+        permissions?: any;
     }): Promise<any>;
     getProfile(userId: string): Promise<User>;
     resetUserPassword(adminId: string, userId: string, newPassword: string): Promise<{

@@ -222,12 +222,14 @@ export class AuthService {
     });
   }
   
-  // ✅ CRIAR NOVO USUÁRIO
-  async createUser(adminId: string, data: { name: string; email: string; password: string; role?: string }) {
-    // 1. Verificar se quem está criando é ADMIN
-    const admin = await this.userRepo.findOne({ where: { id: adminId } });
-    if (!admin || admin.role !== UserRole.ADMIN) {
-      throw new ForbiddenException('Apenas administradores podem criar usuários.');
+  // ✅ CRIAR NOVO USUÁRIO (Admin ou Público)
+  async createUser(adminId: string | null, data: { name: string; email: string; password: string; role?: string; status?: string; permissions?: any }) {
+    // 1. Verificar se quem está criando é ADMIN (somente se adminId for fornecido)
+    if (adminId) {
+      const admin = await this.userRepo.findOne({ where: { id: adminId } });
+      if (!admin || admin.role !== UserRole.ADMIN) {
+        throw new ForbiddenException('Apenas administradores podem criar usuários.');
+      }
     }
 
     // 2. Verificar se o e-mail já existe
@@ -243,7 +245,18 @@ export class AuthService {
       email: data.email,
       password: hashedPassword,
       role: (data.role as UserRole) || UserRole.OPERACIONAL,
-      status: UserStatus.ATIVO,
+      // Se for cadastro público (adminId === null), status é PENDENTE. Se for admin, é ATIVO.
+      status: (data.status as UserStatus) || (adminId ? UserStatus.ATIVO : UserStatus.PENDENTE),
+      permissions: data.permissions || {
+        dashboard: { view: true, edit: false },
+        kanban: { view: false, edit: false },
+        clientes: { view: false, edit: false },
+        contratos: { view: false, edit: false },
+        contas_receber: { view: false, edit: false },
+        contas_pagar: { view: false, edit: false },
+        dashboard_financeiro: { view: false, edit: false },
+        kpis: { view: false, edit: false },
+      },
     });
 
     const saved = await this.userRepo.save(newUser);

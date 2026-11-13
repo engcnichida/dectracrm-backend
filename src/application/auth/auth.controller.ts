@@ -25,8 +25,23 @@ export class AuthController {
   // ============================================
   
   @Post('login')
-  async login(@Body() loginDto: any) { // Mantido 'any' para compatibilidade com seu DTO
+  async login(@Body() loginDto: any) {
     return this.authService.login(loginDto);
+  }
+
+  // ✅ NOVO: Rota de Cadastro Público (Status PADRÃO: PENDENTE)
+  @Post('signup')
+  async signup(
+    @Body() body: { name: string; email: string; password: string },
+  ) {
+    // Passamos 'null' como adminId, pois é um auto-cadastro
+    return this.authService.createUser(null, {
+      name: body.name,
+      email: body.email,
+      password: body.password,
+      role: 'OPERACIONAL', // Cargo padrão para novos cadastros
+      status: 'PENDENTE',  // Aguarda aprovação do Admin
+    });
   }
 
   // ✅ REMOVIDO: 'signup' não existe no seu AuthService (usuários são criados pelo Admin)

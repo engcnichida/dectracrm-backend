@@ -215,9 +215,11 @@ let AuthService = class AuthService {
         });
     }
     async createUser(adminId, data) {
-        const admin = await this.userRepo.findOne({ where: { id: adminId } });
-        if (!admin || admin.role !== user_entity_1.UserRole.ADMIN) {
-            throw new common_1.ForbiddenException('Apenas administradores podem criar usuários.');
+        if (adminId) {
+            const admin = await this.userRepo.findOne({ where: { id: adminId } });
+            if (!admin || admin.role !== user_entity_1.UserRole.ADMIN) {
+                throw new common_1.ForbiddenException('Apenas administradores podem criar usuários.');
+            }
         }
         const existing = await this.userRepo.findOne({ where: { email: data.email } });
         if (existing) {
@@ -229,7 +231,17 @@ let AuthService = class AuthService {
             email: data.email,
             password: hashedPassword,
             role: data.role || user_entity_1.UserRole.OPERACIONAL,
-            status: user_entity_1.UserStatus.ATIVO,
+            status: data.status || (adminId ? user_entity_1.UserStatus.ATIVO : user_entity_1.UserStatus.PENDENTE),
+            permissions: data.permissions || {
+                dashboard: { view: true, edit: false },
+                kanban: { view: false, edit: false },
+                clientes: { view: false, edit: false },
+                contratos: { view: false, edit: false },
+                contas_receber: { view: false, edit: false },
+                contas_pagar: { view: false, edit: false },
+                dashboard_financeiro: { view: false, edit: false },
+                kpis: { view: false, edit: false },
+            },
         });
         const saved = await this.userRepo.save(newUser);
         const { password, ...userWithoutPassword } = saved;

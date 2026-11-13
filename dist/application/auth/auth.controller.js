@@ -26,6 +26,15 @@ let AuthController = class AuthController {
     async login(loginDto) {
         return this.authService.login(loginDto);
     }
+    async signup(body) {
+        return this.authService.createUser(null, {
+            name: body.name,
+            email: body.email,
+            password: body.password,
+            role: 'OPERACIONAL',
+            status: 'PENDENTE',
+        });
+    }
     async getProfile(req) {
         const userId = req.user?.id || req.user?.sub;
         if (!userId)
@@ -76,6 +85,13 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "login", null);
+__decorate([
+    (0, common_1.Post)('signup'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "signup", null);
 __decorate([
     (0, common_1.Get)('me'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),

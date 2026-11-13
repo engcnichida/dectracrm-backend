@@ -16,6 +16,11 @@ export declare class AuthController {
             }>;
         };
     }>;
+    signup(body: {
+        name: string;
+        email: string;
+        password: string;
+    }): Promise<any>;
     getProfile(req: any): Promise<any>;
     changeOwnPassword(req: any, data: {
         currentPassword: string;

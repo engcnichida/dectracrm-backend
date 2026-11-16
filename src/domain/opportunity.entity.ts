@@ -12,6 +12,9 @@ export class Opportunity {
   @Column({ length: 300, nullable: true })
   company: string;
 
+  @Column({ nullable: true })
+  industry: string; 
+  
   @Column({ length: 200, nullable: true })
   contactName: string;
 
@@ -33,6 +36,15 @@ export class Opportunity {
   @Column({ type: 'varchar', length: 50, default: 'LEAD_CAPTURADO' })
   pipelineStage: string;
 
+   // ✅ Histórico de interações (Datas de contato)
+  @Column({ type: 'json', nullable: true, default: [] })
+  interactions: {
+    date: string;
+    subject: string;
+    channel: 'email' | 'telefone' | 'organico' | 'reuniao' | 'outro';
+    notes?: string;
+  }[];
+  
   @ManyToOne(() => Customer, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'customerId' })
   customer: Customer;

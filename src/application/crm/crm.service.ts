@@ -2068,42 +2068,42 @@ async updateExpense(id: string, data: any) {
   }
 
   /**
-   * Busca a FICHA COMPLETA do Cliente de forma segura, sem depender de colunas que podem não existir
+   * Busca a FICHA COMPLETA do Cliente de forma 100% segura, usando apenas colunas que existem no banco
    */
   async getCustomerFullFicha(id: string) {
-    // 1. Busca a oportunidade inicial
+    // 1. Busca a oportunidade/contrato inicial
     const initialOpp: any = await this.opportunityRepo.findOne({ where: { id } });
     if (!initialOpp) throw new NotFoundException('Registro não encontrado');
 
     const customerId = initialOpp.customerId;
-    const oppTitle = initialOpp.title || 'Oportunidade';
+    const oppTitle = initialOpp.title || initialOpp.companyName || 'Oportunidade';
 
     // 2. Busca TODOS os contratos/oportunidades deste cliente
-    // Usamos APENAS 'id', 'customerId' e 'title' (colunas 100% garantidas)
     let contractsQuery = this.opportunityRepo.createQueryBuilder('o');
     if (customerId) {
       contractsQuery = contractsQuery.where('o.customerId = :customerId', { customerId });
     } else {
-      // Fallback seguro: busca por este ID ou por título similar
+      // Fallback: busca por este ID ou por título similar
       contractsQuery = contractsQuery.where('o.id = :id OR o.title ILIKE :title', { id, title: `%${oppTitle}%` });
     }
     const allContracts = await contractsQuery.orderBy('o.createdAt', 'DESC').getMany();
 
     // 3. Busca TODAS as faturas (Contas a Receber) vinculadas
-    // Usamos APENAS 'contractId', 'opportunityId' e 'description' (colunas 100% garantidas)
+    // ⚠️ USANDO APENAS: customerId, contractId e description (colunas 100% garantidas na sua entidade)
     let receivablesQuery = this.receivableRepo.createQueryBuilder('r');
+    
     if (customerId) {
-      receivablesQuery = receivablesQuery.where('r.customerId = :customerId OR r.contractId = :id', { customerId, id });
+      // Se tiver customerId, busca por ele (é o mais preciso)
+      receivablesQuery = receivablesQuery.where('r.customerId = :customerId', { customerId });
     } else {
-      // Fallback seguro: busca por vínculo direto com esta oportunidade ou descrição similar
-      receivablesQuery = receivablesQuery.where('r.contractId = :id OR r.opportunityId = :id OR r.description ILIKE :title', { id, title: `%${oppTitle}%` });
+      // Fallback seguro: busca por contractId (caso o ID seja de um contrato) ou pela descrição
+      receivablesQuery = receivablesQuery.where('r.contractId = :id OR r.description ILIKE :title', { id, title: `%${oppTitle}%` });
     }
     const allReceivables = await receivablesQuery.orderBy('r.dueDate', 'DESC').getMany();
 
     return {
       customer: {
         id: customerId || 'N/A',
-        // Tenta pegar o nome, mas se não existir, usa o título da oportunidade como nome do cliente
         name: initialOpp.companyName || initialOpp.company || oppTitle,
         contactName: initialOpp.contactName,
         contactPhone: initialOpp.contactPhone,
@@ -2114,5 +2114,5 @@ async updateExpense(id: string, data: any) {
       receivables: allReceivables,
       primaryOpportunity: initialOpp 
     };
-  }  
+  }
 } 

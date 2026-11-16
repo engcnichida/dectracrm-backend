@@ -2069,7 +2069,7 @@ async updateExpense(id: string, data: any) {
 
   /**
    * Busca os dados completos para a "Ficha" do Cliente/Contrato
-   * Inclui: Dados da Oportunidade + Histórico de Interações + Faturas (Contas a Receber)
+   * Inclui: Dados da Oportunidade + Faturas (Contas a Receber)
    */
   async getContractFicha(id: string) {
     // 1. Busca a oportunidade/contrato
@@ -2077,24 +2077,15 @@ async updateExpense(id: string, data: any) {
     if (!opp) throw new NotFoundException('Oportunidade/Contrato não encontrado');
 
     // 2. Busca as faturas (Contas a Receber) vinculadas a este contrato
-    // Nota: Se sua entidade Receivable usa 'opportunityId' em vez de 'contractId', altere abaixo.
+    // Usamos 'as any' para evitar erros de tipagem do TypeORM caso o nome da coluna varie
     const receivables = await this.receivableRepo.find({
-      where: { contractId: id }, 
+      where: { contractId: id } as any, 
       order: { dueDate: 'ASC' }
     });
 
-    // Se não achar por contractId, tenta buscar pelo customerId como fallback
-    let finalReceivables = receivables;
-    if (receivables.length === 0 && (opp as any).customerId) {
-       finalReceivables = await this.receivableRepo.find({
-         where: { customerId: (opp as any).customerId },
-         order: { dueDate: 'ASC' }
-       });
-    }
-
     return {
       opportunity: opp,
-      receivables: finalReceivables,
+      receivables: receivables,
     };
   }  
 } 

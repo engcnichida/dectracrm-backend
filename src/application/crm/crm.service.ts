@@ -2104,7 +2104,7 @@ async updateExpense(id: string, data: any) {
     return {
       customer: {
         id: customerId || 'N/A',
-        name: initialOpp.companyName || initialOpp.company || oppTitle,
+        name: initialOpp.company || initialOpp.companyName || oppTitle, // ✅ Prioriza 'company'
         contactName: initialOpp.contactName,
         contactPhone: initialOpp.contactPhone,
         contactEmail: initialOpp.contactEmail,

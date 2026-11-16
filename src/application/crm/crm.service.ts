@@ -15,7 +15,7 @@ import { ReceiptsService } from '../receipts/receipts.service';
 import { ReceiptType, ReceiptStatus } from '../../domain/receipt.entity';
 import { Supplier } from '../../domain/supplier.entity'; 
 import { Receipt } from '../../domain/receipt.entity';  
-import { Repository, DataSource, Brackets, MoreThan, LessThan } from 'typeorm';
+import { Repository, DataSource, Brackets, MoreThan, LessThan, Like } from 'typeorm';
 
 @Injectable()
 export class CrmService {
@@ -2068,24 +2068,46 @@ async updateExpense(id: string, data: any) {
   }
 
   /**
-   * Busca os dados completos para a "Ficha" do Cliente/Contrato
-   * Inclui: Dados da Oportunidade + Faturas (Contas a Receber)
+   * Busca a FICHA COMPLETA do Cliente: Todos os contratos, todas as faturas e dados da empresa
    */
-  async getContractFicha(id: string) {
-    // 1. Busca a oportunidade/contrato
-    const opp = await this.opportunityRepo.findOne({ where: { id } });
-    if (!opp) throw new NotFoundException('Oportunidade/Contrato não encontrado');
+  async getCustomerFullFicha(id: string) {
+    // 1. Busca a oportunidade/contrato inicial para descobrir o cliente
+    const initialOpp = await this.opportunityRepo.findOne({ where: { id } });
+    if (!initialOpp) throw new NotFoundException('Registro não encontrado');
 
-    // 2. Busca as faturas (Contas a Receber) vinculadas a este contrato
-    // Usamos 'as any' para evitar erros de tipagem do TypeORM caso o nome da coluna varie
-    const receivables = await this.receivableRepo.find({
-      where: { contractId: id } as any, 
-      order: { dueDate: 'ASC' }
+    const customerId = (initialOpp as any).customerId;
+    const companyName = initialOpp.companyName || initialOpp.company;
+
+    // 2. Busca TODOS os contratos/oportunidades deste cliente
+    // (Usa customerId se existir, senão tenta buscar pelo nome da empresa como fallback)
+    const allContracts = await this.opportunityRepo.find({
+      where: customerId 
+        ? { customerId: customerId as any } 
+        : [{ companyName: companyName }, { company: companyName }],
+      order: { createdAt: 'DESC' }
+    });
+
+    // 3. Busca TODAS as faturas (Contas a Receber) deste cliente
+    const allReceivables = await this.receivableRepo.find({
+      where: customerId 
+        ? { customerId: customerId as any } 
+        : [{ description: Like(`%${companyName}%`) }], // Fallback se não tiver customerId
+      order: { dueDate: 'DESC' }
     });
 
     return {
-      opportunity: opp,
-      receivables: receivables,
+      customer: {
+        id: customerId || 'N/A',
+        name: companyName || 'Cliente sem nome',
+        contactName: initialOpp.contactName,
+        contactPhone: initialOpp.contactPhone,
+        contactEmail: initialOpp.contactEmail,
+        industry: initialOpp.industry,
+      },
+      contracts: allContracts,
+      receivables: allReceivables,
+      // Mantemos a oportunidade inicial para referência do histórico principal
+      primaryOpportunity: initialOpp 
     };
   }  
 } 

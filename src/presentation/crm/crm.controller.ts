@@ -87,10 +87,14 @@ export class CrmController {
     return this.crmService.getClosedArchive();
   }
 
-  @Get('contracts/:id/ficha')
+  // ==========================================
+  // FICHA COMPLETA DO CLIENTE (Substitui a ficha antiga)
+  // ==========================================
+
+  @Get('contracts/:id/full-ficha')
   @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR, UserRole.MARKETING, UserRole.FINANCEIRO)
-  getContractFicha(@Param('id') id: string) {
-    return this.crmService.getContractFicha(id);
+  async getCustomerFullFicha(@Param('id') id: string) {
+    return this.crmService.getCustomerFullFicha(id);
   }
 
   // ==========================================

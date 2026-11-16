@@ -134,27 +134,53 @@ export class CrmService {
   }
 
   async updateOpportunity(id: string, data: any) {
-    await this.opportunityRepo.update(id, data);
-    return this.opportunityRepo.findOne({ where: { id } });
-  }
+    console.log('📝 [updateOpportunity] Dados recebidos para atualização:', data);
 
-  async updateStage(id: string, stage: string) {
-    console.log('🔍 [updateStage] Requisição recebida:', { id, stage });
-    
-    const opportunity: any = await this.opportunityRepo.findOne({ where: { id } });
-    if (!opportunity) throw new NotFoundException('Oportunidade não encontrada');
+    // 1. Filtra apenas os campos seguros
+    const safeData: any = {};
+    const allowedFields = [
+      'title', 'estimatedValue', 'pipelineStage', 'stage', 
+      'company', 'companyName', 'industry', 
+      'contactName', 'contactPhone', 'contactEmail', 'interactions', 'customerId', 'description'
+    ];
 
-    let targetStage = stage;
-    if (stage === 'GANHO' || stage === 'FECHADO_GANHO') targetStage = 'FECHADO_GANHO';
-    
-    opportunity.pipelineStage = targetStage as any;
-    await this.opportunityRepo.save(opportunity);
+    for (const key of allowedFields) {
+      if (data[key] !== undefined) {
+        safeData[key] = data[key];
+      }
+    }
 
-    return { 
-      opportunity, 
-      action: 'stage_updated', 
-      message: 'Estágio atualizado com sucesso.' 
-    };
+    try {
+      // 2. Atualiza a Oportunidade
+      await this.opportunityRepo.update(id, safeData);
+
+      // 3. ✅ NOVA LÓGICA: Sincronizar com a tabela de Clientes (Customers)
+      const updatedOpp: any = await this.opportunityRepo.findOne({ where: { id } });
+      
+      if (updatedOpp && updatedOpp.customerId) {
+        console.log('🔄 [updateOpportunity] Sincronizando dados com o Cliente vinculado (ID:', updatedOpp.customerId, ')');
+        
+        const customerUpdateData: any = {};
+        
+        // Mapeia os campos da Oportunidade para os campos da Entidade Customer
+        if (data.company !== undefined) customerUpdateData.companyName = data.company;
+        if (data.industry !== undefined) customerUpdateData.industry = data.industry;
+        if (data.contactName !== undefined) customerUpdateData.contactName = data.contactName;
+        if (data.contactPhone !== undefined) customerUpdateData.contactPhone = data.contactPhone;
+        if (data.contactEmail !== undefined) customerUpdateData.contactEmail = data.contactEmail;
+
+        // Só faz o update se houver dados para mudar
+        if (Object.keys(customerUpdateData).length > 0) {
+          await this.customerRepo.update(updatedOpp.customerId, customerUpdateData);
+          console.log('✅ [updateOpportunity] Cliente sincronizado com sucesso!');
+        }
+      }
+
+      return this.opportunityRepo.findOne({ where: { id } });
+    } catch (error: any) {
+      console.error('❌ [updateOpportunity] Erro ao atualizar:', error.message);
+      throw error;
+    }
   }
 
   async deleteOpportunity(id: string) {

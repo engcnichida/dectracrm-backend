@@ -79,6 +79,20 @@ export class CrmController {
     return this.crmService.getArchivedOpportunities(customerId);
   }
 
+    // Adicione estas rotas junto às outras de Oportunidades/Contratos
+
+  @Get('opportunities/closed-archive')
+  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR, UserRole.MARKETING)
+  getClosedArchive() {
+    return this.crmService.getClosedArchive();
+  }
+
+  @Get('contracts/:id/ficha')
+  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR, UserRole.MARKETING, UserRole.FINANCEIRO)
+  getContractFicha(@Param('id') id: string) {
+    return this.crmService.getContractFicha(id);
+  }
+
   // ==========================================
   // 2. CLIENTES
   // ==========================================

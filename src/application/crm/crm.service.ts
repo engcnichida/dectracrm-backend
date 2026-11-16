@@ -1,7 +1,6 @@
-import { Logger, Injectable, NotFoundException } from '@nestjs/common';
+import { Logger, Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
 import { RecurringExpense } from '../../domain/recurring-expense.entity';
 import { Opportunity } from '../../domain/opportunity.entity';
 import { Customer, CustomerStatus } from '../../domain/customer.entity';
@@ -12,11 +11,12 @@ import { Expense } from '../../domain/expense.entity';
 import { CashFlowForecast } from '../../domain/cash-flow-forecast.entity';
 import { ExpenseType } from '../../domain/expense-type.entity';
 import { UserPreset } from '../../domain/user-preset.entity';
-import { BadRequestException } from '@nestjs/common';
 import { ReceiptsService } from '../receipts/receipts.service'; 
 import { ReceiptType, ReceiptStatus } from '../../domain/receipt.entity';
-   import { Supplier } from '../../domain/supplier.entity'; 
-   import { Receipt } from '../../domain/receipt.entity';   
+import { Supplier } from '../../domain/supplier.entity'; 
+import { Receipt } from '../../domain/receipt.entity';  
+import { Repository, DataSource, Brackets, MoreThan, LessThan } from 'typeorm';
+
 @Injectable()
 export class CrmService {
   // 1. O Logger deve ficar FORA do constructor, como propriedade da classe
@@ -71,13 +71,25 @@ export class CrmService {
   // ==========================================
 
   async getOpportunitiesBoard() {
-    // 1. Busca apenas as oportunidades que NÃO estão arquivadas
-    const opportunities = await this.opportunityRepo.find({
-      where: { archived: false }, // ✅ Filtro que esconde os arquivados do Kanban
-      order: { createdAt: 'DESC' },
-    });
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    // 2. Prepara a estrutura agrupada que o frontend espera
+    // Busca oportunidades não arquivadas, mas filtra Fechado/Ganho com mais de 30 dias
+    const opportunities = await this.opportunityRepo
+      .createQueryBuilder('o')
+      .where('o.archived = :archived', { archived: false })
+      .andWhere(
+        new Brackets(qb => {
+          qb.where('o.pipelineStage != :stage', { stage: 'FECHADO_GANHO' })
+            .orWhere('o.pipelineStage = :stage AND o.updatedAt >= :date', {
+              stage: 'FECHADO_GANHO',
+              date: thirtyDaysAgo,
+            });
+        })
+      )
+      .orderBy('o.createdAt', 'DESC')
+      .getMany();
+
     const groupedBoard: Record<string, any[]> = {
       LEAD_CAPTURADO: [],
       QUALIFICACAO: [],
@@ -87,15 +99,11 @@ export class CrmService {
       PERDIDO: [],
     };
 
-    // 3. Agrupa cada oportunidade na coluna correta
     for (const opp of opportunities) {
-      // Usa pipelineStage ou stage, com fallback para LEAD_CAPTURADO
       const stage = (opp as any).pipelineStage || (opp as any).stage || 'LEAD_CAPTURADO';
-      
       if (groupedBoard[stage]) {
         groupedBoard[stage].push(opp);
       } else {
-        // Se o estágio for desconhecido, joga na primeira coluna para não sumir
         groupedBoard['LEAD_CAPTURADO'].push(opp);
       }
     }
@@ -2039,4 +2047,54 @@ async updateExpense(id: string, data: any) {
       console.log('ℹ️ [Cron] Nenhuma nova conta recorrente precisou ser gerada hoje.');
     }
   }
+  // ==========================================
+  // ARQUIVO DE FECHADOS E FICHA COMPLETA
+  // ==========================================
+
+  /**
+   * Busca oportunidades fechadas há mais de 30 dias OU arquivadas manualmente
+   */
+  async getClosedArchive() {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    return this.opportunityRepo
+      .createQueryBuilder('o')
+      .where('o.pipelineStage = :stage', { stage: 'FECHADO_GANHO' })
+      .andWhere('o.updatedAt < :date', { date: thirtyDaysAgo })
+      .orWhere('o.archived = :archived', { archived: true })
+      .orderBy('o.updatedAt', 'DESC')
+      .getMany();
+  }
+
+  /**
+   * Busca os dados completos para a "Ficha" do Cliente/Contrato
+   * Inclui: Dados da Oportunidade + Histórico de Interações + Faturas (Contas a Receber)
+   */
+  async getContractFicha(id: string) {
+    // 1. Busca a oportunidade/contrato
+    const opp = await this.opportunityRepo.findOne({ where: { id } });
+    if (!opp) throw new NotFoundException('Oportunidade/Contrato não encontrado');
+
+    // 2. Busca as faturas (Contas a Receber) vinculadas a este contrato
+    // Nota: Se sua entidade Receivable usa 'opportunityId' em vez de 'contractId', altere abaixo.
+    const receivables = await this.receivableRepo.find({
+      where: { contractId: id }, 
+      order: { dueDate: 'ASC' }
+    });
+
+    // Se não achar por contractId, tenta buscar pelo customerId como fallback
+    let finalReceivables = receivables;
+    if (receivables.length === 0 && (opp as any).customerId) {
+       finalReceivables = await this.receivableRepo.find({
+         where: { customerId: (opp as any).customerId },
+         order: { dueDate: 'ASC' }
+       });
+    }
+
+    return {
+      opportunity: opp,
+      receivables: finalReceivables,
+    };
+  }  
 } 

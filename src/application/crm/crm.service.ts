@@ -2072,28 +2072,34 @@ async updateExpense(id: string, data: any) {
    */
   async getCustomerFullFicha(id: string) {
     // 1. Busca a oportunidade/contrato inicial para descobrir o cliente
-    const initialOpp = await this.opportunityRepo.findOne({ where: { id } });
+    // Usamos ': any' para evitar que o TypeScript reclame de propriedades que existem no banco mas não na tipagem
+    const initialOpp: any = await this.opportunityRepo.findOne({ where: { id } });
     if (!initialOpp) throw new NotFoundException('Registro não encontrado');
 
-    const customerId = (initialOpp as any).customerId;
-    const companyName = initialOpp.companyName || initialOpp.company;
+    const customerId = initialOpp.customerId;
+    const companyName = initialOpp.companyName || initialOpp.company || '';
 
-    // 2. Busca TODOS os contratos/oportunidades deste cliente
-    // (Usa customerId se existir, senão tenta buscar pelo nome da empresa como fallback)
-    const allContracts = await this.opportunityRepo.find({
-      where: customerId 
-        ? { customerId: customerId as any } 
-        : [{ companyName: companyName }, { company: companyName }],
-      order: { createdAt: 'DESC' }
-    });
+    // 2. Busca TODOS os contratos/oportunidades deste cliente usando QueryBuilder (ignora tipagem estrita)
+    let contractsQuery = this.opportunityRepo.createQueryBuilder('o');
+    if (customerId) {
+      contractsQuery = contractsQuery.where('o.customerId = :customerId', { customerId });
+    } else if (companyName) {
+      contractsQuery = contractsQuery.where('(o.company ILIKE :name OR o.companyName ILIKE :name)', { name: `%${companyName}%` });
+    } else {
+      contractsQuery = contractsQuery.where('1=0'); // Não retorna nada se não tiver como buscar
+    }
+    const allContracts = await contractsQuery.orderBy('o.createdAt', 'DESC').getMany();
 
-    // 3. Busca TODAS as faturas (Contas a Receber) deste cliente
-    const allReceivables = await this.receivableRepo.find({
-      where: customerId 
-        ? { customerId: customerId as any } 
-        : [{ description: Like(`%${companyName}%`) }], // Fallback se não tiver customerId
-      order: { dueDate: 'DESC' }
-    });
+    // 3. Busca TODAS as faturas (Contas a Receber) deste cliente usando QueryBuilder
+    let receivablesQuery = this.receivableRepo.createQueryBuilder('r');
+    if (customerId) {
+      receivablesQuery = receivablesQuery.where('r.customerId = :customerId', { customerId });
+    } else if (companyName) {
+      receivablesQuery = receivablesQuery.where('r.description ILIKE :name', { name: `%${companyName}%` });
+    } else {
+      receivablesQuery = receivablesQuery.where('1=0');
+    }
+    const allReceivables = await receivablesQuery.orderBy('r.dueDate', 'DESC').getMany();
 
     return {
       customer: {
@@ -2106,7 +2112,6 @@ async updateExpense(id: string, data: any) {
       },
       contracts: allContracts,
       receivables: allReceivables,
-      // Mantemos a oportunidade inicial para referência do histórico principal
       primaryOpportunity: initialOpp 
     };
   }  

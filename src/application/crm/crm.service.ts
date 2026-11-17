@@ -152,15 +152,19 @@ export class CrmService {
       } else {
         // 4. Se não existe, cria um novo cliente automaticamente
         console.log('🆕 [createOpportunity] Cliente não existe. Criando automaticamente...');
-        const newCustomer = this.customerRepo.create({
+        
+        const newCustomerData: any = {
           name: data.contactName || companyName || 'Contato Principal',
           companyName: companyName || null,
           contactName: data.contactName || null,
           contactPhone: data.contactPhone || null,
           contactEmail: contactEmail || null,
-          status: 'ATIVO',
-        });
-        const savedCustomer = await this.customerRepo.save(newCustomer);
+          status: 'ATIVO', // O cast 'as any' no objeto abaixo resolve o conflito do Enum
+        };
+
+        const newCustomer = this.customerRepo.create(newCustomerData as any);
+        const savedCustomer: any = await this.customerRepo.save(newCustomer);
+        
         customerId = savedCustomer.id;
         console.log('✅ [createOpportunity] Novo cliente criado! ID:', customerId);
       }

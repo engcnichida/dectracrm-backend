@@ -188,72 +188,43 @@ export class CrmService {
   }
 
   async updateOpportunity(id: string, data: any) {
-    console.log('📝 [updateOpportunity] Dados recebidos para atualização:', data);
+    console.log('📝 [updateOpportunity] Dados recebidos:', data);
 
-    // 1. Busca a oportunidade atual para comparar
-    const currentOpp: any = await this.opportunityRepo.findOne({ where: { id } });
-    if (!currentOpp) throw new NotFoundException('Oportunidade não encontrada');
-
-    // 2. Filtra apenas os campos seguros
+    // 1. Mapeamento SEGURO: Frontend -> Colunas Exatas da Entidade
     const safeData: any = {};
-    const allowedFields = [
-      'title', 'estimatedValue', 'pipelineStage', 'stage', 
-      'company', 'companyName', 'industry', 
-      'contactName', 'contactPhone', 'contactEmail', 'interactions', 'customerId', 'description'
-    ];
-
-    for (const key of allowedFields) {
-      if (data[key] !== undefined) {
-        safeData[key] = data[key];
-      }
-    }
-
-    // ✅ NOVA LÓGICA: Se o nome da empresa mudou e não tem customerId, tenta vincular
-    const oldCompany = (currentOpp.company || currentOpp.companyName || '').toLowerCase().trim();
-    const newCompany = (data.company || data.companyName || '').toLowerCase().trim();
-    
-    if (newCompany && newCompany !== oldCompany && !currentOpp.customerId && !data.customerId) {
-      console.log('🔄 [updateOpportunity] Nome da empresa mudou. Buscando cliente existente...');
-      
-      const existingCustomer = await this.customerRepo
-        .createQueryBuilder('c')
-        .where('TRIM(LOWER(c.companyName)) = :company', { company: newCompany })
-        .orWhere('TRIM(LOWER(c.name)) = :company', { company: newCompany })
-        .getOne();
-
-      if (existingCustomer) {
-        console.log('✅ [updateOpportunity] Cliente existente encontrado! Vinculando:', existingCustomer.id);
-        safeData.customerId = existingCustomer.id;
-      }
-    }
+    if (data.company !== undefined) safeData.company = data.company;
+    if (data.companyName !== undefined) safeData.company = data.companyName; // Fallback
+    if (data.industry !== undefined) safeData.industry = data.industry;
+    if (data.contactName !== undefined) safeData.contactName = data.contactName;
+    if (data.contactPhone !== undefined) safeData.contactPhone = data.contactPhone;
+    if (data.contactEmail !== undefined) safeData.contactEmail = data.contactEmail;
+    if (data.title !== undefined) safeData.title = data.title;
+    if (data.estimatedValue !== undefined) safeData.estimatedValue = data.estimatedValue;
+    if (data.pipelineStage !== undefined) safeData.pipelineStage = data.pipelineStage;
+    if (data.interactions !== undefined) safeData.interactions = data.interactions;
 
     try {
-      // 3. Atualiza a Oportunidade
+      // 2. Atualiza a Oportunidade
       await this.opportunityRepo.update(id, safeData);
-
-      // 4. Sincroniza com a tabela de Clientes (se houver customerId)
       const updatedOpp: any = await this.opportunityRepo.findOne({ where: { id } });
-      
-      if (updatedOpp && updatedOpp.customerId) {
-        console.log('🔄 [updateOpportunity] Sincronizando dados com o Cliente vinculado');
-        
-        const customerUpdateData: any = {};
-        if (data.company !== undefined) customerUpdateData.companyName = data.company;
-        if (data.industry !== undefined) customerUpdateData.industry = data.industry;
-        if (data.contactName !== undefined) customerUpdateData.contactName = data.contactName;
-        if (data.contactPhone !== undefined) customerUpdateData.contactPhone = data.contactPhone;
-        if (data.contactEmail !== undefined) customerUpdateData.contactEmail = data.contactEmail;
 
-        if (Object.keys(customerUpdateData).length > 0) {
-          await this.customerRepo.update(updatedOpp.customerId, customerUpdateData);
-          console.log('✅ [updateOpportunity] Cliente sincronizado com sucesso!');
+      // 3. Sincroniza com o Cliente (se houver vínculo)
+      if (updatedOpp && updatedOpp.customerId) {
+        const customerUpdate: any = {};
+        if (data.company || data.companyName) customerUpdate.companyName = data.company || data.companyName;
+        if (data.industry) customerUpdate.industry = data.industry;
+        if (data.contactName) customerUpdate.contactName = data.contactName;
+        if (data.contactPhone) customerUpdate.contactPhone = data.contactPhone;
+        if (data.contactEmail) customerUpdate.contactEmail = data.contactEmail;
+
+        if (Object.keys(customerUpdate).length > 0) {
+          await this.customerRepo.update(updatedOpp.customerId, customerUpdate);
         }
       }
-
-      return this.opportunityRepo.findOne({ where: { id } });
+      return updatedOpp;
     } catch (error: any) {
-      console.error('❌ [updateOpportunity] Erro ao atualizar:', error.message);
-      throw error;
+      console.error('❌ [updateOpportunity] Erro fatal:', error.message);
+      throw error; // Lança o erro para o frontend ver o motivo exato
     }
   }
 

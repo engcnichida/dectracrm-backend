@@ -2158,13 +2158,23 @@ async updateExpense(id: string, data: any) {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    return this.opportunityRepo
+    // Query corrigida com Brackets para evitar lógica OR solta
+    const archived = await this.opportunityRepo
       .createQueryBuilder('o')
-      .where('o.pipelineStage = :stage', { stage: 'FECHADO_GANHO' })
-      .andWhere('o.updatedAt < :date', { date: thirtyDaysAgo })
-      .orWhere('o.archived = :archived', { archived: true })
+      .where('o.archived = :archived', { archived: true })
+      .orWhere(
+        new Brackets(qb => {
+          qb.where('o.pipelineStage = :stage', { stage: 'FECHADO_GANHO' })
+            .andWhere('o.updatedAt < :date', { date: thirtyDaysAgo });
+        })
+      )
       .orderBy('o.updatedAt', 'DESC')
       .getMany();
+
+    // ✅ Deduplicar a lista de arquivados por ID
+    return archived.filter((item: any, index: number, self: any[]) =>
+      index === self.findIndex((t: any) => t.id === item.id)
+    );
   }
 
   /**
@@ -2220,13 +2230,44 @@ async updateExpense(id: string, data: any) {
     }
     const allReceivables = await receivablesQuery.orderBy('r.dueDate', 'DESC').getMany();
 
+    const allContracts = await contractsQuery.orderBy('o.createdAt', 'DESC').getMany();
+
+    // 3. Busca TODAS as faturas (Contas a Receber) vinculadas
+    const contractIds = allContracts.map((c: any) => c.id);
+
+    let receivablesQuery = this.receivableRepo.createQueryBuilder('r');
+    if (customerId) {
+      receivablesQuery = receivablesQuery.where('r.customerId = :customerId', { customerId });
+    } else if (contractIds.length > 0) {
+      receivablesQuery = receivablesQuery.where('r.contractId IN (:...contractIds)', { contractIds });
+    } else {
+      receivablesQuery = receivablesQuery.where('r.description ILIKE :name', { name: `%${companyName}%` });
+    }
+    const allReceivables = await receivablesQuery.orderBy('r.dueDate', 'DESC').getMany();
+
+    // ✅ NOVO: Deduplicar contratos por ID para garantir que não haja repetições na tela
+    const uniqueContracts = allContracts.filter((contract: any, index: number, self: any[]) =>
+      index === self.findIndex((t: any) => t.id === contract.id)
+    );
+
+    // ✅ NOVO: Deduplicar faturas por ID também
+    const uniqueReceivables = allReceivables.filter((rec: any, index: number, self: any[]) =>
+      index === self.findIndex((t: any) => t.id === rec.id)
+    );
+
+    const bestCustomerData = uniqueContracts.find((c: any) => c.contactName || c.contactEmail) || initialOpp;
+
     return {
       customer: {
         id: customerId || 'N/A',
-        ...customerData,
+        name: companyName,
+        contactName: bestCustomerData.contactName || 'N/A',
+        contactPhone: bestCustomerData.contactPhone || 'N/A',
+        contactEmail: bestCustomerData.contactEmail || 'N/A',
+        industry: bestCustomerData.industry || 'N/A',
       },
-      contracts: allContracts,
-      receivables: allReceivables,
+      contracts: uniqueContracts, // ✅ Envia a lista limpa
+      receivables: uniqueReceivables, // ✅ Envia a lista limpa
       primaryOpportunity: initialOpp 
     };
   }

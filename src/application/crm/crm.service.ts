@@ -2177,24 +2177,25 @@ async updateExpense(id: string, data: any) {
   }
 
   /**
-   * Busca a FICHA UNIFICADA da Empresa: Agrega TODOS os contratos e faturas, 
-   * seja pelo ID do cliente ou pelo nome da empresa, com deduplicação garantida.
+   * Busca a FICHA UNIFICADA da Empresa usando APENAS colunas que existem na entidade Opportunity
    */
   async getCustomerFullFicha(id: string) {
-    // 1. Busca a oportunidade/contrato inicial para ter uma referência
+    // 1. Busca a oportunidade/contrato inicial
     const initialOpp: any = await this.opportunityRepo.findOne({ where: { id } });
     if (!initialOpp) throw new NotFoundException('Registro não encontrado');
 
     const customerId = initialOpp.customerId;
-    const companyName = initialOpp.company || initialOpp.companyName || initialOpp.title || 'Empresa';
+    // Usa 'company' ou 'title' (colunas que existem de fato)
+    const companyName = initialOpp.company || initialOpp.title || 'Empresa';
 
     // 2. Busca TODOS os contratos/oportunidades desta empresa
     let contractsQuery = this.opportunityRepo.createQueryBuilder('o');
     if (customerId) {
       contractsQuery = contractsQuery.where('o.customerId = :customerId', { customerId });
     } else {
+      // ✅ CORREÇÃO: Usando APENAS 'o.company' e 'o.title'
       contractsQuery = contractsQuery.where(
-        'o.company ILIKE :name OR o.companyName ILIKE :name OR o.title ILIKE :name', 
+        'o.company ILIKE :name OR o.title ILIKE :name', 
         { name: `%${companyName}%` }
       );
     }
@@ -2202,18 +2203,19 @@ async updateExpense(id: string, data: any) {
 
     // 3. Busca TODAS as faturas (Contas a Receber) vinculadas
     const contractIds = allContracts.map((c: any) => c.id);
-
     let receivablesQuery = this.receivableRepo.createQueryBuilder('r');
+
     if (customerId) {
       receivablesQuery = receivablesQuery.where('r.customerId = :customerId', { customerId });
     } else if (contractIds.length > 0) {
       receivablesQuery = receivablesQuery.where('r.contractId IN (:...contractIds)', { contractIds });
     } else {
-      receivablesQuery = receivablesQuery.where('r.description ILIKE :name', { name: `%${companyName}%` });
+      receivablesQuery = receivablesQuery.where('1=0'); // Fallback seguro
     }
+    
     const allReceivables = await receivablesQuery.orderBy('r.dueDate', 'DESC').getMany();
 
-    // 4. ✅ DEDUPLICAÇÃO: Remove registros repetidos pelo ID (garante lista limpa)
+    // 4. Deduplicação por ID
     const uniqueContracts = allContracts.filter((contract: any, index: number, self: any[]) =>
       index === self.findIndex((t: any) => t.id === contract.id)
     );
@@ -2222,7 +2224,6 @@ async updateExpense(id: string, data: any) {
       index === self.findIndex((t: any) => t.id === rec.id)
     );
 
-    // 5. Consolida os dados do cliente (usando os dados mais completos encontrados)
     const bestCustomerData = uniqueContracts.find((c: any) => c.contactName || c.contactEmail) || initialOpp;
 
     return {
@@ -2234,8 +2235,8 @@ async updateExpense(id: string, data: any) {
         contactEmail: bestCustomerData.contactEmail || 'N/A',
         industry: bestCustomerData.industry || 'N/A',
       },
-      contracts: uniqueContracts, // ✅ Envia a lista limpa
-      receivables: uniqueReceivables, // ✅ Envia a lista limpa
+      contracts: uniqueContracts,
+      receivables: uniqueReceivables,
       primaryOpportunity: initialOpp 
     };
   }

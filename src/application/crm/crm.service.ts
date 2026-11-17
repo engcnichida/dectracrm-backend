@@ -2102,39 +2102,54 @@ async updateExpense(id: string, data: any) {
     if (!initialOpp) throw new NotFoundException('Registro não encontrado');
 
     const customerId = initialOpp.customerId;
-    const oppTitle = initialOpp.title || initialOpp.companyName || 'Oportunidade';
+    const oppTitle = initialOpp.title || initialOpp.company || 'Oportunidade';
 
-    // 2. Busca TODOS os contratos/oportunidades deste cliente
+    // 2. Dados base vindos da Oportunidade
+    let customerData: any = {
+      name: initialOpp.company || initialOpp.companyName || oppTitle,
+      contactName: initialOpp.contactName,
+      contactPhone: initialOpp.contactPhone,
+      contactEmail: initialOpp.contactEmail,
+      industry: initialOpp.industry,
+    };
+
+    // 3. ✅ SE HOUVER CLIENTE VINCULADO, BUSCA OS DADOS DELE PARA COMPLEMENTAR
+    if (customerId) {
+      const customer = await this.customerRepo.findOne({ where: { id: customerId } });
+      if (customer) {
+        // Mescla os dados: usa o da Oportunidade se existir, senão usa o do Cliente
+        customerData = {
+          name: initialOpp.company || initialOpp.companyName || customer.companyName || customer.name || oppTitle,
+          contactName: initialOpp.contactName || customer.contactName,
+          contactPhone: initialOpp.contactPhone || customer.contactPhone,
+          contactEmail: initialOpp.contactEmail || customer.contactEmail,
+          industry: initialOpp.industry || customer.industry,
+        };
+      }
+    }
+
+    // 4. Busca TODOS os contratos/oportunidades deste cliente
     let contractsQuery = this.opportunityRepo.createQueryBuilder('o');
     if (customerId) {
       contractsQuery = contractsQuery.where('o.customerId = :customerId', { customerId });
     } else {
-      // Fallback: busca por este ID ou por título similar
-      contractsQuery = contractsQuery.where('o.id = :id OR o.title ILIKE :title', { id, title: `%${oppTitle}%` });
+      contractsQuery = contractsQuery.where('o.id = :id OR o.title ILIKE :title OR o.company ILIKE :title', { id, title: `%${customerData.name}%` });
     }
     const allContracts = await contractsQuery.orderBy('o.createdAt', 'DESC').getMany();
 
-    // 3. Busca TODAS as faturas (Contas a Receber) vinculadas
-    // ⚠️ USANDO APENAS: customerId, contractId e description (colunas 100% garantidas na sua entidade)
+    // 5. Busca TODAS as faturas (Contas a Receber) vinculadas
     let receivablesQuery = this.receivableRepo.createQueryBuilder('r');
-    
     if (customerId) {
-      // Se tiver customerId, busca por ele (é o mais preciso)
       receivablesQuery = receivablesQuery.where('r.customerId = :customerId', { customerId });
     } else {
-      // Fallback seguro: busca por contractId (caso o ID seja de um contrato) ou pela descrição
-      receivablesQuery = receivablesQuery.where('r.contractId = :id OR r.description ILIKE :title', { id, title: `%${oppTitle}%` });
+      receivablesQuery = receivablesQuery.where('r.contractId = :id OR r.description ILIKE :title', { id, title: `%${customerData.name}%` });
     }
     const allReceivables = await receivablesQuery.orderBy('r.dueDate', 'DESC').getMany();
 
     return {
       customer: {
         id: customerId || 'N/A',
-        name: initialOpp.company || initialOpp.companyName || oppTitle, // ✅ Prioriza 'company'
-        contactName: initialOpp.contactName,
-        contactPhone: initialOpp.contactPhone,
-        contactEmail: initialOpp.contactEmail,
-        industry: initialOpp.industry,
+        ...customerData,
       },
       contracts: allContracts,
       receivables: allReceivables,

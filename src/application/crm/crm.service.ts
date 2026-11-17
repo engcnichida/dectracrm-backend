@@ -2193,7 +2193,7 @@ async updateExpense(id: string, data: any) {
           contactName: initialOpp.contactName || customer.contactName,
           contactPhone: initialOpp.contactPhone || customer.contactPhone,
           contactEmail: initialOpp.contactEmail || customer.contactEmail,
-          industry: initialOpp.industry || customer.industry,
+          industry: initialOpp.industry || 'N/A',
         };
       }
     }

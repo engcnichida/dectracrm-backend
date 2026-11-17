@@ -2158,7 +2158,6 @@ async updateExpense(id: string, data: any) {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    // Query corrigida com Brackets para evitar lógica OR solta
     const archived = await this.opportunityRepo
       .createQueryBuilder('o')
       .where('o.archived = :archived', { archived: true })
@@ -2178,58 +2177,27 @@ async updateExpense(id: string, data: any) {
   }
 
   /**
-   * Busca a FICHA COMPLETA do Cliente de forma 100% segura, usando apenas colunas que existem no banco
+   * Busca a FICHA UNIFICADA da Empresa: Agrega TODOS os contratos e faturas, 
+   * seja pelo ID do cliente ou pelo nome da empresa, com deduplicação garantida.
    */
   async getCustomerFullFicha(id: string) {
-    // 1. Busca a oportunidade/contrato inicial
+    // 1. Busca a oportunidade/contrato inicial para ter uma referência
     const initialOpp: any = await this.opportunityRepo.findOne({ where: { id } });
     if (!initialOpp) throw new NotFoundException('Registro não encontrado');
 
     const customerId = initialOpp.customerId;
-    const oppTitle = initialOpp.title || initialOpp.company || 'Oportunidade';
+    const companyName = initialOpp.company || initialOpp.companyName || initialOpp.title || 'Empresa';
 
-    // 2. Dados base vindos da Oportunidade
-    let customerData: any = {
-      name: initialOpp.company || initialOpp.companyName || oppTitle,
-      contactName: initialOpp.contactName,
-      contactPhone: initialOpp.contactPhone,
-      contactEmail: initialOpp.contactEmail,
-      industry: initialOpp.industry,
-    };
-
-    // 3. ✅ SE HOUVER CLIENTE VINCULADO, BUSCA OS DADOS DELE PARA COMPLEMENTAR
-    if (customerId) {
-      const customer = await this.customerRepo.findOne({ where: { id: customerId } });
-      if (customer) {
-        // Mescla os dados: usa o da Oportunidade se existir, senão usa o do Cliente
-        customerData = {
-          name: initialOpp.company || initialOpp.companyName || customer.companyName || customer.name || oppTitle,
-          contactName: initialOpp.contactName || customer.contactName,
-          contactPhone: initialOpp.contactPhone || customer.contactPhone,
-          contactEmail: initialOpp.contactEmail || customer.contactEmail,
-          industry: initialOpp.industry || 'N/A',
-        };
-      }
-    }
-
-    // 4. Busca TODOS os contratos/oportunidades deste cliente
+    // 2. Busca TODOS os contratos/oportunidades desta empresa
     let contractsQuery = this.opportunityRepo.createQueryBuilder('o');
     if (customerId) {
       contractsQuery = contractsQuery.where('o.customerId = :customerId', { customerId });
     } else {
-      contractsQuery = contractsQuery.where('o.id = :id OR o.title ILIKE :title OR o.company ILIKE :title', { id, title: `%${customerData.name}%` });
+      contractsQuery = contractsQuery.where(
+        'o.company ILIKE :name OR o.companyName ILIKE :name OR o.title ILIKE :name', 
+        { name: `%${companyName}%` }
+      );
     }
-    const allContracts = await contractsQuery.orderBy('o.createdAt', 'DESC').getMany();
-
-    // 5. Busca TODAS as faturas (Contas a Receber) vinculadas
-    let receivablesQuery = this.receivableRepo.createQueryBuilder('r');
-    if (customerId) {
-      receivablesQuery = receivablesQuery.where('r.customerId = :customerId', { customerId });
-    } else {
-      receivablesQuery = receivablesQuery.where('r.contractId = :id OR r.description ILIKE :title', { id, title: `%${customerData.name}%` });
-    }
-    const allReceivables = await receivablesQuery.orderBy('r.dueDate', 'DESC').getMany();
-
     const allContracts = await contractsQuery.orderBy('o.createdAt', 'DESC').getMany();
 
     // 3. Busca TODAS as faturas (Contas a Receber) vinculadas
@@ -2245,16 +2213,16 @@ async updateExpense(id: string, data: any) {
     }
     const allReceivables = await receivablesQuery.orderBy('r.dueDate', 'DESC').getMany();
 
-    // ✅ NOVO: Deduplicar contratos por ID para garantir que não haja repetições na tela
+    // 4. ✅ DEDUPLICAÇÃO: Remove registros repetidos pelo ID (garante lista limpa)
     const uniqueContracts = allContracts.filter((contract: any, index: number, self: any[]) =>
       index === self.findIndex((t: any) => t.id === contract.id)
     );
 
-    // ✅ NOVO: Deduplicar faturas por ID também
     const uniqueReceivables = allReceivables.filter((rec: any, index: number, self: any[]) =>
       index === self.findIndex((t: any) => t.id === rec.id)
     );
 
+    // 5. Consolida os dados do cliente (usando os dados mais completos encontrados)
     const bestCustomerData = uniqueContracts.find((c: any) => c.contactName || c.contactEmail) || initialOpp;
 
     return {

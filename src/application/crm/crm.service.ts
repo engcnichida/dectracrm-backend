@@ -114,19 +114,69 @@ export class CrmService {
   async createOpportunity(data: any) {
     console.log('📝 [createOpportunity] Dados brutos recebidos:', data);
 
-    const stageDefinido = data.pipelineStage || data.stage || 'NOVO';
+    const stageDefinido = data.pipelineStage || data.stage || 'LEAD_CAPTURADO';
+    const companyName = data.company || data.companyName || '';
+    const contactEmail = data.contactEmail || '';
 
+    // ✅ NOVA LÓGICA: Verificar se já existe um cliente com o mesmo nome ou e-mail
+    let customerId = data.customerId; // Mantém o customerId se já foi enviado explicitamente
+
+    if (!customerId && (companyName || contactEmail)) {
+      console.log('🔍 [createOpportunity] Buscando cliente existente para evitar duplicação...');
+      
+      let existingCustomer = null;
+
+      // 1. Busca por Nome da Empresa (ignorando espaços e case)
+      if (companyName) {
+        const searchCompany = String(companyName).trim().toLowerCase();
+        existingCustomer = await this.customerRepo
+          .createQueryBuilder('c')
+          .where('TRIM(LOWER(c.companyName)) = :company', { company: searchCompany })
+          .orWhere('TRIM(LOWER(c.name)) = :company', { company: searchCompany })
+          .getOne();
+      }
+
+      // 2. Se não achou, busca por E-mail
+      if (!existingCustomer && contactEmail) {
+        const searchEmail = String(contactEmail).trim().toLowerCase();
+        existingCustomer = await this.customerRepo
+          .createQueryBuilder('c')
+          .where('TRIM(LOWER(c.contactEmail)) = :email', { email: searchEmail })
+          .getOne();
+      }
+
+      // 3. Se encontrou, usa o ID dele
+      if (existingCustomer) {
+        console.log('✅ [createOpportunity] Cliente existente encontrado! ID:', existingCustomer.id);
+        customerId = existingCustomer.id;
+      } else {
+        // 4. Se não existe, cria um novo cliente automaticamente
+        console.log('🆕 [createOpportunity] Cliente não existe. Criando automaticamente...');
+        const newCustomer = this.customerRepo.create({
+          name: data.contactName || companyName || 'Contato Principal',
+          companyName: companyName || null,
+          contactName: data.contactName || null,
+          contactPhone: data.contactPhone || null,
+          contactEmail: contactEmail || null,
+          status: 'ATIVO',
+        });
+        const savedCustomer = await this.customerRepo.save(newCustomer);
+        customerId = savedCustomer.id;
+        console.log('✅ [createOpportunity] Novo cliente criado! ID:', customerId);
+      }
+    }
+
+    // Monta os dados finais da oportunidade
     const opportunityData = {
       ...data,
       pipelineStage: stageDefinido,
-      stage: stageDefinido, // Redundância de segurança para compatibilidade
+      stage: stageDefinido,
+      customerId: customerId, // ✅ Vincula ao cliente (existente ou novo)
     };
 
-    console.log('💾 [createOpportunity] Salvando com estágio garantido:', opportunityData.pipelineStage);
+    console.log('💾 [createOpportunity] Salvando oportunidade com customerId:', customerId);
 
     const newOpportunity = this.opportunityRepo.create(opportunityData);
-    
-    // Adicionado ": any" para evitar erro de tipagem do TypeScript
     const saved: any = await this.opportunityRepo.save(newOpportunity);
 
     console.log('✅ [createOpportunity] Oportunidade criada com sucesso! ID:', saved.id);
@@ -136,7 +186,11 @@ export class CrmService {
   async updateOpportunity(id: string, data: any) {
     console.log('📝 [updateOpportunity] Dados recebidos para atualização:', data);
 
-    // 1. Filtra apenas os campos seguros
+    // 1. Busca a oportunidade atual para comparar
+    const currentOpp: any = await this.opportunityRepo.findOne({ where: { id } });
+    if (!currentOpp) throw new NotFoundException('Oportunidade não encontrada');
+
+    // 2. Filtra apenas os campos seguros
     const safeData: any = {};
     const allowedFields = [
       'title', 'estimatedValue', 'pipelineStage', 'stage', 
@@ -150,26 +204,42 @@ export class CrmService {
       }
     }
 
+    // ✅ NOVA LÓGICA: Se o nome da empresa mudou e não tem customerId, tenta vincular
+    const oldCompany = (currentOpp.company || currentOpp.companyName || '').toLowerCase().trim();
+    const newCompany = (data.company || data.companyName || '').toLowerCase().trim();
+    
+    if (newCompany && newCompany !== oldCompany && !currentOpp.customerId && !data.customerId) {
+      console.log('🔄 [updateOpportunity] Nome da empresa mudou. Buscando cliente existente...');
+      
+      const existingCustomer = await this.customerRepo
+        .createQueryBuilder('c')
+        .where('TRIM(LOWER(c.companyName)) = :company', { company: newCompany })
+        .orWhere('TRIM(LOWER(c.name)) = :company', { company: newCompany })
+        .getOne();
+
+      if (existingCustomer) {
+        console.log('✅ [updateOpportunity] Cliente existente encontrado! Vinculando:', existingCustomer.id);
+        safeData.customerId = existingCustomer.id;
+      }
+    }
+
     try {
-      // 2. Atualiza a Oportunidade
+      // 3. Atualiza a Oportunidade
       await this.opportunityRepo.update(id, safeData);
 
-      // 3. ✅ NOVA LÓGICA: Sincronizar com a tabela de Clientes (Customers)
+      // 4. Sincroniza com a tabela de Clientes (se houver customerId)
       const updatedOpp: any = await this.opportunityRepo.findOne({ where: { id } });
       
       if (updatedOpp && updatedOpp.customerId) {
-        console.log('🔄 [updateOpportunity] Sincronizando dados com o Cliente vinculado (ID:', updatedOpp.customerId, ')');
+        console.log('🔄 [updateOpportunity] Sincronizando dados com o Cliente vinculado');
         
         const customerUpdateData: any = {};
-        
-        // Mapeia os campos da Oportunidade para os campos da Entidade Customer
         if (data.company !== undefined) customerUpdateData.companyName = data.company;
         if (data.industry !== undefined) customerUpdateData.industry = data.industry;
         if (data.contactName !== undefined) customerUpdateData.contactName = data.contactName;
         if (data.contactPhone !== undefined) customerUpdateData.contactPhone = data.contactPhone;
         if (data.contactEmail !== undefined) customerUpdateData.contactEmail = data.contactEmail;
 
-        // Só faz o update se houver dados para mudar
         if (Object.keys(customerUpdateData).length > 0) {
           await this.customerRepo.update(updatedOpp.customerId, customerUpdateData);
           console.log('✅ [updateOpportunity] Cliente sincronizado com sucesso!');

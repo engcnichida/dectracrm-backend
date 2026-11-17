@@ -61,7 +61,9 @@ export class CrmController {
 
   @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR)
   @Patch('opportunities/:id/stage')
-  updateStage(@Param('id') id: string, @Body('stage') stage: string) { return this.crmService.updateStage(id, stage); }
+  updateStage(@Param('id') id: string, @Body('stage') stage: string) { 
+    return this.crmService.updateOpportunity(id, { pipelineStage: stage }); 
+  }
 
   @Roles(UserRole.ADMIN, UserRole.GERENTE) // 👑 Apenas Admin e Gerente podem excluir
   @Delete('opportunities/:id')

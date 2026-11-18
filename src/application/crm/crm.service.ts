@@ -115,62 +115,56 @@ export class CrmService {
     console.log('📝 [createOpportunity] Dados brutos recebidos:', data);
 
     const stageDefinido = data.pipelineStage || data.stage || 'LEAD_CAPTURADO';
-    const companyName = data.company || data.companyName || '';
-    const contactEmail = data.contactEmail || '';
+    const companyName = (data.company || data.companyName || '').trim();
+    const contactEmail = (data.contactEmail || '').trim().toLowerCase();
 
-    // ✅ NOVA LÓGICA: Verificar se já existe um cliente com o mesmo nome ou e-mail
-    let customerId = data.customerId; // Mantém o customerId se já foi enviado explicitamente
+    let customerId = data.customerId;
 
+    // ✅ LÓGICA DE DEDUPLICAÇÃO DE CLIENTE
     if (!customerId && (companyName || contactEmail)) {
       console.log('🔍 [createOpportunity] Buscando cliente existente para evitar duplicação...');
       
       let existingCustomer = null;
 
-      // 1. Busca por Nome da Empresa (ignorando espaços e case)
+      // 1. Busca por Nome da Empresa (ignorando maiúsculas/minúsculas)
       if (companyName) {
-        const searchCompany = String(companyName).trim().toLowerCase();
         existingCustomer = await this.customerRepo
           .createQueryBuilder('c')
-          .where('TRIM(LOWER(c.companyName)) = :company', { company: searchCompany })
-          .orWhere('TRIM(LOWER(c.name)) = :company', { company: searchCompany })
+          .where('LOWER(c.companyName) = :company', { company: companyName.toLowerCase() })
+          .orWhere('LOWER(c.name) = :company', { company: companyName.toLowerCase() })
           .getOne();
       }
 
       // 2. Se não achou, busca por E-mail
       if (!existingCustomer && contactEmail) {
-        const searchEmail = String(contactEmail).trim().toLowerCase();
         existingCustomer = await this.customerRepo
           .createQueryBuilder('c')
-          .where('TRIM(LOWER(c.contactEmail)) = :email', { email: searchEmail })
+          .where('LOWER(c.contactEmail) = :email', { email: contactEmail })
           .getOne();
       }
 
-      // 3. Se encontrou, usa o ID dele
+      // 3. Se encontrou, usa o ID dele (NÃO cria duplicata)
       if (existingCustomer) {
         console.log('✅ [createOpportunity] Cliente existente encontrado! ID:', existingCustomer.id);
         customerId = existingCustomer.id;
       } else {
         // 4. Se não existe, cria um novo cliente automaticamente
         console.log('🆕 [createOpportunity] Cliente não existe. Criando automaticamente...');
-        
         const newCustomerData: any = {
           name: data.contactName || companyName || 'Contato Principal',
           companyName: companyName || null,
           contactName: data.contactName || null,
           contactPhone: data.contactPhone || null,
           contactEmail: contactEmail || null,
-          status: 'ATIVO', // O cast 'as any' no objeto abaixo resolve o conflito do Enum
+          status: 'ATIVO',
         };
-
         const newCustomer = this.customerRepo.create(newCustomerData as any);
         const savedCustomer: any = await this.customerRepo.save(newCustomer);
-        
         customerId = savedCustomer.id;
         console.log('✅ [createOpportunity] Novo cliente criado! ID:', customerId);
       }
     }
 
-    // Monta os dados finais da oportunidade
     const opportunityData = {
       ...data,
       pipelineStage: stageDefinido,
@@ -188,43 +182,70 @@ export class CrmService {
   }
 
   async updateOpportunity(id: string, data: any) {
-    console.log('📝 [updateOpportunity] Dados recebidos:', data);
+    console.log('📝 [updateOpportunity] Dados recebidos para atualização:', data);
 
-    // 1. Mapeamento SEGURO: Frontend -> Colunas Exatas da Entidade
+    const currentOpp: any = await this.opportunityRepo.findOne({ where: { id } });
+    if (!currentOpp) throw new NotFoundException('Oportunidade não encontrada');
+
     const safeData: any = {};
-    if (data.company !== undefined) safeData.company = data.company;
-    if (data.companyName !== undefined) safeData.company = data.companyName; // Fallback
-    if (data.industry !== undefined) safeData.industry = data.industry;
-    if (data.contactName !== undefined) safeData.contactName = data.contactName;
-    if (data.contactPhone !== undefined) safeData.contactPhone = data.contactPhone;
-    if (data.contactEmail !== undefined) safeData.contactEmail = data.contactEmail;
-    if (data.title !== undefined) safeData.title = data.title;
-    if (data.estimatedValue !== undefined) safeData.estimatedValue = data.estimatedValue;
-    if (data.pipelineStage !== undefined) safeData.pipelineStage = data.pipelineStage;
-    if (data.interactions !== undefined) safeData.interactions = data.interactions;
+    const allowedFields = [
+      'title', 'estimatedValue', 'pipelineStage', 'stage', 
+      'company', 'companyName', 'industry', 
+      'contactName', 'contactPhone', 'contactEmail', 'interactions', 'customerId', 'description'
+    ];
+
+    for (const key of allowedFields) {
+      if (data[key] !== undefined) {
+        safeData[key] = data[key];
+      }
+    }
+
+    // ✅ LÓGICA DE DEDUPLICAÇÃO NA EDIÇÃO
+    const oldCompany = (currentOpp.company || currentOpp.companyName || '').toLowerCase().trim();
+    const newCompany = (data.company || data.companyName || '').toLowerCase().trim();
+    
+    // Se o nome da empresa mudou e ainda não tem customerId, tenta vincular a um existente
+    if (newCompany && newCompany !== oldCompany && !currentOpp.customerId && !data.customerId) {
+      console.log('🔄 [updateOpportunity] Nome da empresa mudou. Buscando cliente existente...');
+      
+      const existingCustomer = await this.customerRepo
+        .createQueryBuilder('c')
+        .where('LOWER(c.companyName) = :company', { company: newCompany })
+        .orWhere('LOWER(c.name) = :company', { company: newCompany })
+        .getOne();
+
+      if (existingCustomer) {
+        console.log('✅ [updateOpportunity] Cliente existente encontrado! Vinculando:', existingCustomer.id);
+        safeData.customerId = existingCustomer.id;
+      }
+    }
 
     try {
-      // 2. Atualiza a Oportunidade
       await this.opportunityRepo.update(id, safeData);
+
+      // Sincroniza com a tabela de Clientes (se houver customerId)
       const updatedOpp: any = await this.opportunityRepo.findOne({ where: { id } });
-
-      // 3. Sincroniza com o Cliente (se houver vínculo)
+      
       if (updatedOpp && updatedOpp.customerId) {
-        const customerUpdate: any = {};
-        if (data.company || data.companyName) customerUpdate.companyName = data.company || data.companyName;
-        if (data.industry) customerUpdate.industry = data.industry;
-        if (data.contactName) customerUpdate.contactName = data.contactName;
-        if (data.contactPhone) customerUpdate.contactPhone = data.contactPhone;
-        if (data.contactEmail) customerUpdate.contactEmail = data.contactEmail;
+        console.log('🔄 [updateOpportunity] Sincronizando dados com o Cliente vinculado');
+        
+        const customerUpdateData: any = {};
+        if (data.company !== undefined) customerUpdateData.companyName = data.company;
+        if (data.industry !== undefined) customerUpdateData.industry = data.industry;
+        if (data.contactName !== undefined) customerUpdateData.contactName = data.contactName;
+        if (data.contactPhone !== undefined) customerUpdateData.contactPhone = data.contactPhone;
+        if (data.contactEmail !== undefined) customerUpdateData.contactEmail = data.contactEmail;
 
-        if (Object.keys(customerUpdate).length > 0) {
-          await this.customerRepo.update(updatedOpp.customerId, customerUpdate);
+        if (Object.keys(customerUpdateData).length > 0) {
+          await this.customerRepo.update(updatedOpp.customerId, customerUpdateData);
+          console.log('✅ [updateOpportunity] Cliente sincronizado com sucesso!');
         }
       }
-      return updatedOpp;
+
+      return this.opportunityRepo.findOne({ where: { id } });
     } catch (error: any) {
-      console.error('❌ [updateOpportunity] Erro fatal:', error.message);
-      throw error; // Lança o erro para o frontend ver o motivo exato
+      console.error('❌ [updateOpportunity] Erro ao atualizar:', error.message);
+      throw error;
     }
   }
 

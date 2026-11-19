@@ -56,6 +56,12 @@ export class CrmController {
   createOpportunity(@Body() data: any) { return this.crmService.createOpportunity(data); }
 
   @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR)
+  @Post('opportunities/:id/enrich')
+  async enrichLead(@Param('id') id: string) {
+    return this.crmService.enrichLeadWithIntelligence(id);
+  }
+
+  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR)
   @Put('opportunities/:id')
   updateOpportunity(@Param('id') id: string, @Body() data: any) { return this.crmService.updateOpportunity(id, data); }
 
@@ -423,5 +429,10 @@ export class CrmController {
       console.error('Erro ao exportar CSV:', error);
       return res.status(500).json({ message: 'Erro ao gerar relatório' });
     }
+  }
+    @Post('opportunities/:id/enrich')
+  // @UseGuards(JwtAuthGuard) // Descomente se você usa guarda de autenticação
+  async enrichLead(@Param('id') id: string) {
+    return this.crmService.enrichLeadWithIntelligence(id);
   }
 }

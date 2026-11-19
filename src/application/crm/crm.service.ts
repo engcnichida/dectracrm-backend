@@ -2232,32 +2232,24 @@ async updateExpense(id: string, data: any) {
       primaryOpportunity: initialOpp 
     };
   }
-    /**
-   * Enriquece um lead enviando os dados para o serviço externo de Lead Intelligence
-   */
   async enrichLeadWithIntelligence(opportunityId: string) {
-    // 1. Busca a oportunidade atual
     const opp = await this.opportunityRepo.findOne({ where: { id: opportunityId } });
     if (!opp) throw new NotFoundException('Oportunidade não encontrada');
 
-    // 2. Prepara o payload EXATO que o Lead Intelligence precisa
+    // ✅ CORREÇÃO: Usar apenas 'opp.company' (companyName não existe na entidade)
     const payload = {
-      empresa: opp.company || opp.companyName || '',
+      empresa: opp.company || '',
       nome_contato: opp.contactName || '',
       telefone: opp.contactPhone || '',
       email: opp.contactEmail || '',
     };
 
-    // 3. Pega a URL do Lead Intelligence das Variáveis de Ambiente
     const intelligenceUrl = process.env.LEAD_INTELLIGENCE_API_URL || 'http://localhost:8000';
-    
-    // Ajuste '/enrich' se a rota no seu FastAPI tiver outro nome (ex: '/api/v1/enrich')
-    const endpoint = `${intelligenceUrl}/enrich`; 
+    const endpoint = `${intelligenceUrl}/enrich`;
 
     try {
       console.log(`🔍 [Enrich] Enviando dados para Lead Intelligence: ${endpoint}`);
       
-      // 4. Faz a chamada HTTP para o Lead Intelligence
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2271,69 +2263,15 @@ async updateExpense(id: string, data: any) {
       const intelligenceData = await response.json();
       console.log('✅ [Enrich] Dados recebidos com sucesso:', intelligenceData);
 
-      // 5. Salva os dados enriquecidos na Oportunidade (ex: no campo de descrição)
-      const enrichedNote = `\n\n--- DADOS ENRIQUECIDOS (Lead Intelligence) ---\n${JSON.stringify(intelligenceData, null, 2)}`;
-      
-      opp.description = (opp.description || '') + enrichedNote;
-      await this.opportunityRepo.save(opp);
-
-      return { success: true, data: intelligenceData };
-
-    } catch (error: any) {
-      console.error('❌ [Enrich] Erro ao conectar com Lead Intelligence:', error.message);
-      throw new Error('Falha ao enriquecer lead. Verifique se o serviço de Inteligência está no ar e a URL está correta.');
-    }
-  }
-  // ... (outros métodos do service)
-
-  /**
-   * Enriquece um lead enviando os dados para o serviço de Lead Intelligence
-   */
-  async enrichLeadWithIntelligence(opportunityId: string) {
-    // 1. Busca a oportunidade atual
-    const opp = await this.opportunityRepo.findOne({ where: { id: opportunityId } });
-    if (!opp) throw new NotFoundException('Oportunidade não encontrada');
-
-    // 2. Prepara o payload para o Lead Intelligence
-    const payload = {
-      empresa: opp.company || opp.companyName || '',
-      nome_contato: opp.contactName || '',
-      telefone: opp.contactPhone || '',
-      email: opp.contactEmail || '',
-    };
-
-    // 3. URL do Lead Intelligence (virá das Variáveis de Ambiente do Render)
-    const intelligenceUrl = process.env.LEAD_INTELLIGENCE_API_URL || 'http://localhost:8000';
-    const endpoint = `${intelligenceUrl}/enrich`; 
-
-    try {
-      console.log(`🔍 [Enrich] Enviando dados para Lead Intelligence: ${endpoint}`);
-      
-      // 4. Faz a chamada HTTP
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Falha na API de Inteligência: ${response.statusText}`);
-      }
-
-      const intelligenceData = await response.json();
-      console.log('✅ [Enrich] Dados recebidos com sucesso:', intelligenceData);
-
-      // 5. Salva os dados enriquecidos na descrição da oportunidade
       const enrichedNote = `\n\n--- DADOS ENRIQUECIDOS (Lead Intelligence) ---\n${JSON.stringify(intelligenceData, null, 2)}`;
       opp.description = (opp.description || '') + enrichedNote;
       
       await this.opportunityRepo.save(opp);
 
       return { success: true, data: intelligenceData };
-
     } catch (error: any) {
       console.error('❌ [Enrich] Erro ao conectar com Lead Intelligence:', error.message);
-      throw new Error('Falha ao enriquecer lead. Verifique se o serviço de Inteligência está no ar e a URL está correta.');
+      throw new Error('Falha ao enriquecer lead. Verifique se o serviço de Inteligência está no ar.');
     }
   }
-} // <--- ESTE É O ÚNICO } QUE DEVE FECHAR A CLASSE CrmService
+} 

@@ -56,12 +56,6 @@ export class CrmController {
   createOpportunity(@Body() data: any) { return this.crmService.createOpportunity(data); }
 
   @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR)
-  @Post('opportunities/:id/enrich')
-  async enrichLead(@Param('id') id: string) {
-    return this.crmService.enrichLeadWithIntelligence(id);
-  }
-
-  @Roles(UserRole.ADMIN, UserRole.GERENTE, UserRole.VENDEDOR)
   @Put('opportunities/:id')
   updateOpportunity(@Param('id') id: string, @Body() data: any) { return this.crmService.updateOpportunity(id, data); }
 
@@ -431,7 +425,7 @@ export class CrmController {
     }
   }
   @Post('opportunities/:id/enrich')
-  // @UseGuards(JwtAuthGuard) // Descomente se você usa guarda de autenticação
+  // @UseGuards(JwtAuthGuard) // Descomente esta linha se seu projeto usa guarda de autenticação
   async enrichLead(@Param('id') id: string) {
     return this.crmService.enrichLeadWithIntelligence(id);
   }

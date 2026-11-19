@@ -2284,7 +2284,12 @@ async updateExpense(id: string, data: any) {
       throw new Error('Falha ao enriquecer lead. Verifique se o serviço de Inteligência está no ar e a URL está correta.');
     }
   }
-    async enrichLeadWithIntelligence(opportunityId: string) {
+  // ... (outros métodos do service)
+
+  /**
+   * Enriquece um lead enviando os dados para o serviço de Lead Intelligence
+   */
+  async enrichLeadWithIntelligence(opportunityId: string) {
     // 1. Busca a oportunidade atual
     const opp = await this.opportunityRepo.findOne({ where: { id: opportunityId } });
     if (!opp) throw new NotFoundException('Oportunidade não encontrada');
@@ -2299,7 +2304,7 @@ async updateExpense(id: string, data: any) {
 
     // 3. URL do Lead Intelligence (virá das Variáveis de Ambiente do Render)
     const intelligenceUrl = process.env.LEAD_INTELLIGENCE_API_URL || 'http://localhost:8000';
-    const endpoint = `${intelligenceUrl}/enrich`; // Ajuste se a rota no seu FastAPI for diferente (ex: '/api/enrich')
+    const endpoint = `${intelligenceUrl}/enrich`; 
 
     try {
       console.log(`🔍 [Enrich] Enviando dados para Lead Intelligence: ${endpoint}`);
@@ -2331,4 +2336,4 @@ async updateExpense(id: string, data: any) {
       throw new Error('Falha ao enriquecer lead. Verifique se o serviço de Inteligência está no ar e a URL está correta.');
     }
   }
-} 
+} // <--- ESTE É O ÚNICO } QUE DEVE FECHAR A CLASSE CrmService

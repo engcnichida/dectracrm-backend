@@ -430,7 +430,7 @@ export class CrmController {
       return res.status(500).json({ message: 'Erro ao gerar relatório' });
     }
   }
-    @Post('opportunities/:id/enrich')
+  @Post('opportunities/:id/enrich')
   // @UseGuards(JwtAuthGuard) // Descomente se você usa guarda de autenticação
   async enrichLead(@Param('id') id: string) {
     return this.crmService.enrichLeadWithIntelligence(id);

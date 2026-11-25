@@ -48,19 +48,23 @@ export class AuthService {
 
   // 2. Login Direto (Retorna Token JWT)
   async login(data: { email: string; password: string }) {
-    const user = await this.userRepo.findOne({ where: { email: data.email } });
-    if (!user) throw new UnauthorizedException('Credenciais inválidas');
+    console.log("🔍 DEBUG LOGIN - Email recebido:", data.email);
+    console.log("🔍 DEBUG LOGIN - Senha recebida:", data.password);
 
+    const user = await this.userRepo.findOne({ where: { email: data.email } });
+    
+    if (!user) {
+      console.log("❌ DEBUG LOGIN - Usuário NÃO encontrado no banco.");
+      throw new UnauthorizedException('Credenciais inválidas');
+    }
+
+    console.log("✅ DEBUG LOGIN - Usuário encontrado. Hash no banco:", user.password);
+    
     const validPassword = await bcrypt.compare(data.password, user.password);
+    console.log("🔐 DEBUG LOGIN - Resultado do bcrypt.compare:", validPassword);
+
     if (!validPassword) throw new UnauthorizedException('Credenciais inválidas');
 
-    if (user.status === UserStatus.PENDENTE) {
-      throw new ForbiddenException('Cadastro pendente de aprovação. Aguarde o código de ativação.');
-    }
-
-    if (user.status === UserStatus.BLOQUEADO) {
-      throw new ForbiddenException('Conta bloqueada. Contate o administrador.');
-    }
 
     const payload = { 
       sub: user.id, 

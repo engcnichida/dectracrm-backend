@@ -11,6 +11,8 @@ import { BackupModule } from './application/backup/backup.module';
 import { ReceiptsModule } from './application/receipts/receipts.module';
 import { CashFlowModule } from './application/financial/cash-flow.module';
 import { suppliersModule } from './application/suppliers/suppliers.module'; // Corrigido para maiúscula
+import { AiModule } from './application/ai/ai.module';
+import { WebhooksModule } from './application/webhooks/webhooks.module';
 
 @Module({
   imports: [
@@ -54,6 +56,8 @@ import { suppliersModule } from './application/suppliers/suppliers.module'; // C
     ReceiptsModule,
     CashFlowModule,
     suppliersModule,
+    AiModule,
+    WebhooksModule,
   ],
 })
 export class AppModule {}

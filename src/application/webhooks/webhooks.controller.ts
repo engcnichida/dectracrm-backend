@@ -2,7 +2,7 @@ import { Controller, Post, Body, Logger } from '@nestjs/common';
 import { AiClassifierService, LeadIntent } from '../ai/ai-classifier.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like } from 'typeorm';
-import { Client } from '../../domain/client.entity'; // ✅ Entidade correta
+import { Customer } from '../../domain/customer.entity'; // ✅ CORRIGIDO: customer.entity
 
 @Controller('api/v1/webhooks')
 export class WebhooksController {
@@ -10,13 +10,12 @@ export class WebhooksController {
 
   constructor(
     private readonly aiClassifier: AiClassifierService,
-    @InjectRepository(Client)
-    private readonly clientRepo: Repository<Client>,
+    @InjectRepository(Customer) // ✅ CORRIGIDO: Customer
+    private readonly customerRepo: Repository<Customer>,
   ) {}
 
   @Post('whatsapp')
   async handleWhatsAppMessage(@Body() payload: any) {
-    // Tenta extrair o texto e o número de várias estruturas comuns de webhook (Evolution API, etc.)
     const messageText = payload.message?.conversation || payload.message?.extendedTextMessage?.text || payload.text || '';
     const senderNumber = payload.key?.remoteJid?.replace('@s.whatsapp.net', '') || payload.from || '';
 
@@ -46,30 +45,28 @@ export class WebhooksController {
   }
 
   private async processLeadResponse(identifier: string, message: string, channel: 'WHATSAPP' | 'EMAIL') {
-    // 1. Classificar a intenção com a IA
     const intent = await this.aiClassifier.classifyMessage(message);
 
-    // 2. Mapear intenção para o status do seu funil (ajuste os valores se forem diferentes no seu enum)
     let newStatus = 'CONTATADO';
     if (intent === 'INTERESSADO') newStatus = 'NEGOCIACAO'; 
     if (intent === 'NAO_INTERESSADO') newStatus = 'PERDIDO';
     if (intent === 'AGENDAMENTO') newStatus = 'REUNIAO_AGENDADA';
     if (intent === 'DUVIDA') newStatus = 'TIRANDO_DUVIDAS';
 
-    // 3. Buscar o cliente no banco usando as colunas exatas que você informou
+    // ⚠️ AJUSTE: Usei 'cntactPhone' e 'customerStatus' conforme você informou. 
+    // Se no customer.entity.ts o telefone se chamar 'phone' ou 'telefone', ajuste aqui.
     const searchCondition = channel === 'WHATSAPP' 
-      ? { contactPhone: Like(`%${identifier}%`) } // ✅ Coluna exata do telefone
-      : { contactEmail: identifier }; // Assumindo que a coluna de e-mail se chama 'email'
+      ? { cntactPhone: Like(`%${identifier}%`) } 
+      : { email: identifier };
 
-    const client = await this.clientRepo.findOne({ where: searchCondition as any });
+    const customer = await this.customerRepo.findOne({ where: searchCondition as any });
 
-    if (client) {
-      // 4. Atualizar o status e adicionar observação da IA
-      (client as any).customerStatus = newStatus; // ✅ Coluna exata do status
-      (client as any).ultima_interacao = new Date(); // Se essa coluna existir, senão o TypeORM ignora ou você pode remover
-      (client as any).observacao_ia = `IA classificou como ${intent} via ${channel}: "${message.substring(0, 50)}..."`; // Opcional, remova se a coluna não existir
+    if (customer) {
+      (customer as any).customerStatus = newStatus; // ✅ Coluna exata do status
+      (customer as any).ultima_interacao = new Date();
+      (customer as any).observacao_ia = `IA classificou como ${intent} via ${channel}: "${message.substring(0, 50)}..."`;
       
-      await this.clientRepo.save(client);
+      await this.customerRepo.save(customer);
       this.logger.log(`✅ Cliente atualizado para status: ${newStatus}`);
     } else {
       this.logger.warn(`⚠️ Cliente não encontrado para o identificador: ${identifier}`);

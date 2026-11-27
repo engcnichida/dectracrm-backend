@@ -17,7 +17,7 @@ export class AiClassifierService {
   async classifyMessage(message: string): Promise<LeadIntent> {
     try {
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-3.5-turbo', // ou 'gpt-4o-mini' para mais rapidez e custo menor
+        model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',

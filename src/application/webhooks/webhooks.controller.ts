@@ -59,7 +59,7 @@ export class WebhooksController {
       ? { cntactPhone: Like(`%${identifier}%`) } 
       : { email: identifier };
 
-    const customer = await this.customerRepo.findOne({ where: searchCondition as any });
+const customer = await this.customerRepository.findOne({ where: { contactPhone: phoneNumber } });
 
     if (customer) {
       (customer as any).customerStatus = newStatus; // ✅ Coluna exata do status

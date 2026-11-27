@@ -4,7 +4,7 @@ import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
-
+import { FinancialModule } from './presentation/financial/financial.module';
 import { AuthModule } from './application/auth/auth.module';
 import { CrmModule } from './application/crm/crm.module';
 import { BackupModule } from './application/backup/backup.module';
@@ -58,6 +58,7 @@ import { WebhooksModule } from './application/webhooks/webhooks.module';
     suppliersModule,
     AiModule,
     WebhooksModule,
+    FinancialModule,
   ],
 })
 export class AppModule {}

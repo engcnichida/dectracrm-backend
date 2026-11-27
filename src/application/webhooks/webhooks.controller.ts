@@ -1,8 +1,8 @@
 import { Controller, Post, Body, Logger } from '@nestjs/common';
-import { AiClassifierService, LeadIntent } from '../ai/ai-classifier.service';
+import { AiClassifierService } from '../ai/ai-classifier.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like } from 'typeorm';
-import { Customer } from '../../domain/customer.entity'; // ✅ CORRIGIDO: customer.entity
+import { Customer } from '../../domain/customer.entity';
 
 @Controller('api/v1/webhooks')
 export class WebhooksController {
@@ -10,13 +10,14 @@ export class WebhooksController {
 
   constructor(
     private readonly aiClassifier: AiClassifierService,
-    @InjectRepository(Customer) // ✅ CORRIGIDO: Customer
+    @InjectRepository(Customer)
     private readonly customerRepo: Repository<Customer>,
   ) {}
 
   @Post('whatsapp')
   async handleWhatsAppMessage(@Body() payload: any) {
     const messageText = payload.message?.conversation || payload.message?.extendedTextMessage?.text || payload.text || '';
+    // ✅ O senderNumber já chega limpo, sem o "@s.whatsapp.net"
     const senderNumber = payload.key?.remoteJid?.replace('@s.whatsapp.net', '') || payload.from || '';
 
     if (!messageText || !senderNumber) {
@@ -53,16 +54,20 @@ export class WebhooksController {
     if (intent === 'AGENDAMENTO') newStatus = 'REUNIAO_AGENDADA';
     if (intent === 'DUVIDA') newStatus = 'TIRANDO_DUVIDAS';
 
-    // ⚠️ AJUSTE: Usei 'cntactPhone' e 'customerStatus' conforme você informou. 
-    // Se no customer.entity.ts o telefone se chamar 'phone' ou 'telefone', ajuste aqui.
+    // ✅ CORREÇÃO: O 'identifier' já é o número limpo (ex: '5511999999999') ou o e-mail.
+    // ⚠️ IMPORTANTE: Verifique no seu 'customer.entity.ts' se o campo de telefone se chama 'contactPhone' ou 'phone'.
+    // Se se chamar 'phone', mude a linha abaixo para: { phone: Like(`%${identifier}%`) }
     const searchCondition = channel === 'WHATSAPP' 
-      ? { cntactPhone: Like(`%${identifier}%`) } 
+      ? { contactPhone: Like(`%${identifier}%`) } 
       : { email: identifier };
 
-const customer = await this.customerRepository.findOne({ where: { contactPhone: phoneNumber } });
+    // ✅ Agora usamos a searchCondition correta, sem variáveis inexistentes
+    const customer = await this.customerRepo.findOne({ 
+      where: searchCondition 
+    });
 
     if (customer) {
-      (customer as any).customerStatus = newStatus; // ✅ Coluna exata do status
+      (customer as any).customerStatus = newStatus; 
       (customer as any).ultima_interacao = new Date();
       (customer as any).observacao_ia = `IA classificou como ${intent} via ${channel}: "${message.substring(0, 50)}..."`;
       

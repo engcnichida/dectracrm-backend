@@ -138,7 +138,7 @@ export class ReceiptsService {
       data.attachments = attachments;
     }
 
-    // 2. ✅ CORREÇÃO INFALÍVEL: Usar .update() direto no repositório
+    // 2. ✅ CORREÇÃO INFALÍVEL: Montar o payload de atualização com segurança
     const updatePayload: any = {};
     if (data.description !== undefined) updatePayload.description = data.description;
     if (data.amount !== undefined) updatePayload.amount = data.amount;
@@ -147,12 +147,17 @@ export class ReceiptsService {
     if (data.city !== undefined) updatePayload.city = data.city;
     if (data.attachments !== undefined) updatePayload.attachments = data.attachments;
     
-    // Correção de fuso horário para as datas
-    if (data.issueDate !== undefined) {
+    // ✅ CORREÇÃO DE DATAS: Evita o erro "NaN" se o valor for null, undefined ou string vazia
+    if (data.issueDate && data.issueDate !== '') {
       updatePayload.receiptDate = new Date(data.issueDate + 'T12:00:00');
+    } else {
+      updatePayload.receiptDate = null; // Salva como NULL no banco, sem erro
     }
-    if (data.dueDate !== undefined) {
+
+    if (data.dueDate && data.dueDate !== '') {
       updatePayload.dueDate = new Date(data.dueDate + 'T12:00:00');
+    } else {
+      updatePayload.dueDate = null;
     }
 
     // Executa a atualização no banco
